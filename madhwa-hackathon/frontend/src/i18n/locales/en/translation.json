@@ -60,7 +60,7 @@
   },
   "employee": {
     "dashboard": {
-      "title": "📋 Meal Selection",
+      "title": "Meal Selection",
       "subtitle": "Select your meals for tomorrow",
       "deadline": {
         "active": "⏰ {{time}} remaining",

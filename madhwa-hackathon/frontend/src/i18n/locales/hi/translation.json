@@ -25,7 +25,7 @@
   },
   "employee": {
     "dashboard": {
-      "title": "📋 भोजन चयन",
+      "title": "भोजन चयन",
       "subtitle": "कल के लिए अपना भोजन चुनें",
       "meals": {
         "breakfast": "नाश्ता",
