@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { Crown, User } from 'lucide-react';
 import LanguageSwitcher from '../LanguageSwitcher/LanguageSwitcher';
 import './Navbar.css';
 
@@ -39,7 +40,17 @@ const Navbar = () => {
           <div className="brand-text">
             <h1>{t('common.appName')}</h1>
             <span className={`role-badge ${userRole}`}>
-              {userRole === 'admin' ? `👑 ${t('navbar.roleAdmin')}` : `👤 ${t('navbar.roleEmployee')}`}
+              {userRole === 'admin' ? (
+                <>
+                  <Crown size={14} style={{ marginRight: '4px', verticalAlign: 'middle' }} />
+                  {t('navbar.roleAdmin')}
+                </>
+              ) : (
+                <>
+                  <User size={14} style={{ marginRight: '4px', verticalAlign: 'middle' }} />
+                  {t('navbar.roleEmployee')}
+                </>
+              )}
             </span>
           </div>
         </div>

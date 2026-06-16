@@ -2,6 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '../../firebase/config';
 import { useAuth } from '../../context/AuthContext';
+import { 
+  Calendar, Clock, AlertCircle, CheckCircle2, AlertTriangle, 
+  Info, Coffee, Soup, Cookie, ChefHat, Check 
+} from 'lucide-react';
 import './WeeklyMealSelector.css';
 
 const WeeklyMealSelector = () => {
@@ -202,18 +206,22 @@ const WeeklyMealSelector = () => {
   return (
     <div className="weekly-meal-selector">
       <div className="weekly-header">
-        <h2>📅 Weekly Meal Selection</h2>
+        <h2 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <Calendar size={22} style={{ color: 'var(--accent-primary)' }} />
+          Weekly Meal Selection
+        </h2>
         <p className="subtitle">Select your meals for the week (Monday - Saturday)</p>
-        <div className="deadline-notice">
-          ⏰ <strong>Important:</strong> You can edit selections until 12:30 PM of the previous day
+        <div className="deadline-notice" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+          <Clock size={14} style={{ color: 'var(--accent-primary)' }} />
+          <span><strong>Important:</strong> You can edit selections until 12:30 PM of the previous day</span>
         </div>
       </div>
 
       {message.text && (
         <div className={`message ${message.type}`}>
-          {message.type === 'success' && '✓'}
-          {message.type === 'error' && '⚠'}
-          {message.type === 'info' && 'ℹ'}
+          {message.type === 'success' && <CheckCircle2 size={16} style={{ marginRight: '6px', verticalAlign: 'middle', display: 'inline-block' }} />}
+          {message.type === 'error' && <AlertTriangle size={16} style={{ marginRight: '6px', verticalAlign: 'middle', display: 'inline-block' }} />}
+          {message.type === 'info' && <Info size={16} style={{ marginRight: '6px', verticalAlign: 'middle', display: 'inline-block' }} />}
           {' '}{message.text}
         </div>
       )}
@@ -222,7 +230,8 @@ const WeeklyMealSelector = () => {
         {weekDays.map(day => (
           <div key={day.date} className={`day-card ${day.isPast ? 'past' : ''}`}>
             <div className="day-header">
-              <div className="day-info">
+              <div className="day-info" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <Calendar size={14} style={{ color: 'var(--accent-primary)' }} />
                 <span className="day-name">{day.dayName}</span>
                 <span className="day-number">{day.dayNumber}</span>
                 <span className="day-month">{day.month}</span>
@@ -243,18 +252,19 @@ const WeeklyMealSelector = () => {
                     key={mealType}
                     className={`meal-item ${isSelected ? 'selected' : ''} ${!hasMenu ? 'no-menu' : ''}`}
                     onClick={() => hasMenu && handleMealToggle(day.date, mealType)}
+                    style={{ display: 'flex', alignItems: 'center', gap: '10px' }}
                   >
-                    <div className="meal-icon-small">
-                      {mealType === 'breakfast' && '☕'}
-                      {mealType === 'lunch' && '🍛'}
-                      {mealType === 'snacks' && '🍪'}
-                      {mealType === 'dinner' && '🍽️'}
+                    <div className="meal-icon-small" style={{ display: 'flex', alignItems: 'center' }}>
+                      {mealType === 'breakfast' && <Coffee size={14} style={{ color: isSelected ? 'white' : 'var(--accent-primary)' }} />}
+                      {mealType === 'lunch' && <Soup size={14} style={{ color: isSelected ? 'white' : 'var(--accent-primary)' }} />}
+                      {mealType === 'snacks' && <Cookie size={14} style={{ color: isSelected ? 'white' : 'var(--accent-primary)' }} />}
+                      {mealType === 'dinner' && <ChefHat size={14} style={{ color: isSelected ? 'white' : 'var(--accent-primary)' }} />}
                     </div>
-                    <div className="meal-info">
+                    <div className="meal-info" style={{ flex: 1 }}>
                       <span className="meal-name">{mealType.charAt(0).toUpperCase() + mealType.slice(1)}</span>
                       <span className="meal-time">{mealTimings[mealType].start}</span>
                     </div>
-                    {isSelected && <span className="check-mark">✓</span>}
+                    {isSelected && <span className="check-mark"><Check size={14} /></span>}
                   </div>
                 );
               })}

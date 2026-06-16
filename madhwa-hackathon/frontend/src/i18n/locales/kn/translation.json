@@ -25,7 +25,7 @@
   },
   "employee": {
     "dashboard": {
-      "title": "📋 ಊಟದ ಆಯ್ಕೆ",
+      "title": "ಊಟದ ಆಯ್ಕೆ",
       "subtitle": "ನಾಳೆಗಾಗಿ ನಿಮ್ಮ ಊಟವನ್ನು ಆಯ್ಕೆಮಾಡಿ",
       "meals": {
         "breakfast": "ಬೆಳಗಿನ ಉಪಾಹಾರ",

@@ -4,6 +4,10 @@ import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '../../firebase/config';
 import { useAuth } from '../../context/AuthContext';
 import { useTranslation } from 'react-i18next';
+import { 
+  Lock, Clock, Building2, Bell, Calendar, Coffee, Soup, Cookie, ChefHat, 
+  Info, CheckCircle2, AlertTriangle, Utensils, Check, ClipboardCheck, ClipboardList
+} from 'lucide-react';
 import notificationService from '../../utils/notificationService';
 import WorkingModeSelector from './WorkingModeSelector';
 import WorkingFromHome from './WorkingFromHome';
@@ -451,12 +455,25 @@ const EmployeeDashboard = () => {
     <div className="employee-dashboard">
       <div className="dashboard-header">
         <div>
-          <h1>{t('employee.dashboard.title')}</h1>
+          <h1 style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <ClipboardCheck size={28} style={{ color: 'var(--accent-primary)' }} />
+            {t('employee.dashboard.title')}
+          </h1>
           <p className="subtitle">{t('employee.dashboard.subtitle')}</p>
         </div>
         <div className="deadline-info">
           <span className={`deadline-badge ${deadlinePassed ? 'expired' : 'active'}`}>
-            {deadlinePassed ? '🔒 ' + t('dashboard.deadlinePassed') : `⏰ ${getTimeUntilDeadline()}`}
+            {deadlinePassed ? (
+              <>
+                <Lock size={14} style={{ marginRight: '4px', verticalAlign: 'middle' }} />
+                {t('dashboard.deadlinePassed')}
+              </>
+            ) : (
+              <>
+                <Clock size={14} style={{ marginRight: '4px', verticalAlign: 'middle' }} />
+                {getTimeUntilDeadline()}
+              </>
+            )}
           </span>
         </div>
       </div>
@@ -464,7 +481,8 @@ const EmployeeDashboard = () => {
       {/* Working Mode Indicator */}
       <div className="working-mode-indicator">
         <span className="mode-badge">
-          🏢 {t('workingMode.office')}
+          <Building2 size={14} style={{ marginRight: '6px', verticalAlign: 'middle' }} />
+          {t('workingMode.office')}
         </span>
         {!deadlinePassed && (
           <button
@@ -480,7 +498,9 @@ const EmployeeDashboard = () => {
       {showNotificationBanner && (
         <div className="notification-banner">
           <div className="notification-banner-content">
-            <div className="notification-icon">🔔</div>
+            <div className="notification-icon">
+              <Bell size={20} style={{ color: 'var(--accent-primary)' }} />
+            </div>
             <div className="notification-text">
               <strong>{t('notifications.enable')}</strong>
               <p>{t('notifications.enableReminders')}</p>
@@ -505,25 +525,35 @@ const EmployeeDashboard = () => {
 
       {message.text && (
         <div className={`message ${message.type}`}>
-          {message.type === 'success' ? '✓' : '⚠'} {message.text}
+          {message.type === 'success' ? (
+            <CheckCircle2 size={16} style={{ marginRight: '6px', verticalAlign: 'middle', display: 'inline-block' }} />
+          ) : (
+            <AlertTriangle size={16} style={{ marginRight: '6px', verticalAlign: 'middle', display: 'inline-block' }} />
+          )}{' '}
+          {message.text}
         </div>
       )}
 
       <div className="date-card">
         <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '15px'}}>
-          <h3>📅 {viewMode === 'daily' ? t('dashboard.selectMeals') + ' ' + formatDate(getTomorrowDate()) : 'Weekly Meal Selection'}</h3>
+          <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Calendar size={20} style={{ color: 'var(--accent-primary)' }} />
+            {viewMode === 'daily' ? t('dashboard.selectMeals') + ' ' + formatDate(getTomorrowDate()) : 'Weekly Meal Selection'}
+          </h3>
           <div className="view-toggle">
             <button 
               className={`toggle-btn ${viewMode === 'daily' ? 'active' : ''}`}
               onClick={() => setViewMode('daily')}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
             >
-              📅 Daily
+              <Calendar size={14} /> Daily
             </button>
             <button 
               className={`toggle-btn ${viewMode === 'weekly' ? 'active' : ''}`}
               onClick={() => setViewMode('weekly')}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
             >
-              📆 Weekly
+              <Calendar size={14} /> Weekly
             </button>
           </div>
         </div>
@@ -536,7 +566,9 @@ const EmployeeDashboard = () => {
           {!menu ? (
             <div className="no-menu-card">
               <div className="empty-state">
-                <span className="empty-icon">🍽️</span>
+                <span className="empty-icon">
+                  <Utensils size={40} style={{ color: 'var(--text-tertiary)' }} />
+                </span>
                 <h3>{t('dashboard.noMenu')}</h3>
                 <p>{t('dashboard.noMenuText')}</p>
                 <p className="small-text">{t('dashboard.contactAdmin')}</p>
@@ -549,11 +581,16 @@ const EmployeeDashboard = () => {
             <div className={`meal-card ${selections.breakfast ? 'selected' : ''}`}>
               <div className="meal-header">
                 <div style={{display: 'flex', alignItems: 'center', gap: '12px'}}>
-                  <div className="meal-icon">☕</div>
-                  <h3>{t('dashboard.breakfast')}</h3>
-                </div>
-                <div className="meal-timing">
-                  🕐 {mealTimings.breakfast.start} - {mealTimings.breakfast.end}
+                  <div className="meal-icon">
+                    <Coffee size={20} style={{ color: 'var(--accent-primary)' }} />
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <h3>{t('dashboard.breakfast')}</h3>
+                    <div className="meal-timing">
+                      <Clock size={12} style={{ marginRight: '4px', verticalAlign: 'middle' }} />
+                      {mealTimings.breakfast.start} - {mealTimings.breakfast.end}
+                    </div>
+                  </div>
                 </div>
               </div>
               
@@ -583,11 +620,16 @@ const EmployeeDashboard = () => {
             <div className={`meal-card ${selections.lunch ? 'selected' : ''}`}>
               <div className="meal-header">
                 <div style={{display: 'flex', alignItems: 'center', gap: '12px'}}>
-                  <div className="meal-icon">🍛</div>
-                  <h3>{t('dashboard.lunch')}</h3>
-                </div>
-                <div className="meal-timing">
-                  🕐 {mealTimings.lunch.start} - {mealTimings.lunch.end}
+                  <div className="meal-icon">
+                    <Soup size={20} style={{ color: 'var(--accent-primary)' }} />
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <h3>{t('dashboard.lunch')}</h3>
+                    <div className="meal-timing">
+                      <Clock size={12} style={{ marginRight: '4px', verticalAlign: 'middle' }} />
+                      {mealTimings.lunch.start} - {mealTimings.lunch.end}
+                    </div>
+                  </div>
                 </div>
               </div>
               
@@ -617,11 +659,16 @@ const EmployeeDashboard = () => {
             <div className={`meal-card ${selections.snacks ? 'selected' : ''}`}>
               <div className="meal-header">
                 <div style={{display: 'flex', alignItems: 'center', gap: '12px'}}>
-                  <div className="meal-icon">🍪</div>
-                  <h3>{t('dashboard.snacks')}</h3>
-                </div>
-                <div className="meal-timing">
-                  🕐 {mealTimings.snacks.start} - {mealTimings.snacks.end}
+                  <div className="meal-icon">
+                    <Cookie size={20} style={{ color: 'var(--accent-primary)' }} />
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <h3>{t('dashboard.snacks')}</h3>
+                    <div className="meal-timing">
+                      <Clock size={12} style={{ marginRight: '4px', verticalAlign: 'middle' }} />
+                      {mealTimings.snacks.start} - {mealTimings.snacks.end}
+                    </div>
+                  </div>
                 </div>
               </div>
               
@@ -651,11 +698,16 @@ const EmployeeDashboard = () => {
             <div className={`meal-card ${selections.dinner ? 'selected' : ''}`}>
               <div className="meal-header">
                 <div style={{display: 'flex', alignItems: 'center', gap: '12px'}}>
-                  <div className="meal-icon">🍽️</div>
-                  <h3>{t('Dinner')}</h3>
-                </div>
-                <div className="meal-timing">
-                  🕐 {mealTimings.dinner.start} - {mealTimings.dinner.end}
+                  <div className="meal-icon">
+                    <ChefHat size={20} style={{ color: 'var(--accent-primary)' }} />
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <h3>{t('Dinner')}</h3>
+                    <div className="meal-timing">
+                      <Clock size={12} style={{ marginRight: '4px', verticalAlign: 'middle' }} />
+                      {mealTimings.dinner.start} - {mealTimings.dinner.end}
+                    </div>
+                  </div>
                 </div>
               </div>
               
@@ -684,7 +736,10 @@ const EmployeeDashboard = () => {
 
           <div className="summary-section">
             <div className="summary-card">
-              <h3>{t('dashboard.summary')}</h3>
+              <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <ClipboardList size={20} style={{ color: 'var(--accent-primary)' }} />
+                {t('dashboard.summary')}
+              </h3>
               <div className="summary-stats">
                 <div className="stat">
                   <span className="stat-label">{t('dashboard.mealsSelected')}</span>
@@ -692,10 +747,10 @@ const EmployeeDashboard = () => {
                 </div>
                 {savedSelections && (
                   <div className="stat">
-                    <span className="stat-label">{t('dashboard.status')}</span>
-                    <span className={`stat-value ${hasChanges() ? 'warning' : 'success'}`}>
-                      {hasChanges() ? t('dashboard.unsavedChanges') : t('dashboard.saved')}
-                    </span>
+                     <span className="stat-label">{t('dashboard.status')}</span>
+                     <span className={`stat-value ${hasChanges() ? 'warning' : 'success'}`}>
+                       {hasChanges() ? t('dashboard.unsavedChanges') : t('dashboard.saved')}
+                     </span>
                   </div>
                 )}
               </div>
@@ -708,8 +763,9 @@ const EmployeeDashboard = () => {
                 {saving ? t('auth.signingIn').replace('Signing', 'Saving') : hasChanges() ? t('dashboard.savePreferences') : t('dashboard.noChanges')}
               </button>
 
-              <p className="help-text">
-                💡 {t('dashboard.helpText', { time: formatDeadlineTime() })}
+              <p className="help-text" style={{ display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'center' }}>
+                <Info size={14} style={{ color: 'var(--accent-primary)' }} />
+                <span>{t('dashboard.helpText', { time: formatDeadlineTime() })}</span>
               </p>
             </div>
           </div>
@@ -741,26 +797,26 @@ const EmployeeDashboard = () => {
                 <h3>{t('dashboard.mealsSelected')}</h3>
                 <div className="meals-list">
                   {selections.breakfast && (
-                    <div className="meal-item-popup">
-                      <span className="meal-emoji">☕</span>
+                    <div className="meal-item-popup" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <Coffee size={16} style={{ color: 'var(--accent-primary)' }} />
                       <span>{t('dashboard.breakfast')}</span>
                     </div>
                   )}
                   {selections.lunch && (
-                    <div className="meal-item-popup">
-                      <span className="meal-emoji">🍛</span>
+                    <div className="meal-item-popup" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <Soup size={16} style={{ color: 'var(--accent-primary)' }} />
                       <span>{t('dashboard.lunch')}</span>
                     </div>
                   )}
                   {selections.snacks && (
-                    <div className="meal-item-popup">
-                      <span className="meal-emoji">🍪</span>
+                    <div className="meal-item-popup" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <Cookie size={16} style={{ color: 'var(--accent-primary)' }} />
                       <span>{t('dashboard.snacks')}</span>
                     </div>
                   )}
                   {selections.dinner && (
-                    <div className="meal-item-popup">
-                      <span className="meal-emoji">🍽️</span>
+                    <div className="meal-item-popup" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <ChefHat size={16} style={{ color: 'var(--accent-primary)' }} />
                       <span>Dinner</span>
                     </div>
                   )}
@@ -770,8 +826,14 @@ const EmployeeDashboard = () => {
                 </div>
               </div>
               <div className="popup-info">
-                <p>✓ {t('dashboard.saved')} {formatDate(getTomorrowDate())}</p>
-                <p>✓ {t('dashboard.helpText', { time: formatDeadlineTime() })}</p>
+                <p style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <Check size={14} style={{ color: 'var(--success)' }} />
+                  {t('dashboard.saved')} {formatDate(getTomorrowDate())}
+                </p>
+                <p style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <Check size={14} style={{ color: 'var(--success)' }} />
+                  {t('dashboard.helpText', { time: formatDeadlineTime() })}
+                </p>
               </div>
             </div>
             <button 
@@ -789,17 +851,31 @@ const EmployeeDashboard = () => {
         <div className="popup-overlay" onClick={() => setShowDeadlineWarning(false)}>
           <div className="popup-modal warning-popup" onClick={(e) => e.stopPropagation()}>
             <div className="popup-icon">
-              <div className="warning-icon">⏰</div>
+              <div className="warning-icon" style={{ display: 'flex', justifyContent: 'center' }}>
+                <Clock size={48} style={{ color: 'var(--warning)' }} />
+              </div>
             </div>
-            <h2 className="popup-title warning-title">⚠️ Deadline Approaching!</h2>
+            <h2 className="popup-title warning-title" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+              <AlertTriangle size={24} style={{ color: 'var(--warning)' }} />
+              Deadline Approaching!
+            </h2>
             <p className="popup-message">
               The meal selection window is closing in <strong>10 minutes</strong>!
             </p>
             <div className="popup-details warning-details">
-              <p>📅 Deadline: <strong>{formatDeadlineTime()}</strong></p>
-              <p>🍽️ Please complete your meal selection before the deadline.</p>
+              <p style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Calendar size={14} />
+                <span>Deadline: <strong>{formatDeadlineTime()}</strong></span>
+              </p>
+              <p style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Utensils size={14} />
+                <span>Please complete your meal selection before the deadline.</span>
+              </p>
               {(!selections.breakfast && !selections.lunch && !selections.snacks) && (
-                <p className="warning-text">⚠️ You haven't selected any meals yet!</p>
+                <p className="warning-text" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <AlertTriangle size={14} style={{ color: 'var(--warning)' }} />
+                  You haven't selected any meals yet!
+                </p>
               )}
             </div>
             <button 

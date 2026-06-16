@@ -1,5 +1,10 @@
 // src/components/Admin/PredictionsDashboard.jsx
 import React, { useState, useEffect } from 'react';
+import { 
+  Cpu, Info, Sparkles, LineChart, Calendar, Lightbulb, 
+  BarChart3, Trophy, Palmtree, Star, TrendingUp, PowerOff, 
+  CheckCircle2, AlertTriangle, Check 
+} from 'lucide-react';
 import './PredictionsDashboard.css';
 
 const PredictionsDashboard = () => {
@@ -226,32 +231,26 @@ const PredictionsDashboard = () => {
   return (
     <div className="predictions-dashboard">
       <div className="predictions-header">
-        <div>
-          <h2>🤖 AI Predictions</h2>
-          <p className="subtitle">ML-powered meal demand forecasting</p>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <Cpu size={28} style={{ color: 'var(--accent-primary)' }} />
+          <h2>AI Predictions</h2>
         </div>
-        
-        {apiStatus && (
-          <div className={`api-status ${apiStatus.status === 'online' ? 'online' : 'offline'}`}>
-            <span className="status-dot"></span>
-            <span>{apiStatus.status === 'online' ? 'ML Service Online' : 'ML Service Offline'}</span>
-          </div>
-        )}
+        <p className="subtitle">ML-powered meal demand forecasting</p>
       </div>
 
       {message.text && (
         <div className={`message ${message.type}`}>
-          {message.type === 'success' && '✓'}
-          {message.type === 'error' && '⚠'}
-          {message.type === 'info' && 'ℹ'}
+          {message.type === 'success' && <CheckCircle2 size={16} style={{ marginRight: '6px', verticalAlign: 'middle', display: 'inline-block' }} />}
+          {message.type === 'error' && <AlertTriangle size={16} style={{ marginRight: '6px', verticalAlign: 'middle', display: 'inline-block' }} />}
+          {message.type === 'info' && <Info size={16} style={{ marginRight: '6px', verticalAlign: 'middle', display: 'inline-block' }} />}
           {' '}{message.text}
         </div>
       )}
 
       {/* Setup Instructions */}
       {apiStatus?.status === 'online' && !apiStatus?.models_trained && (
-        <div className="setup-notice">
-          <div className="setup-icon">ℹ️</div>
+        <div className="setup-notice" style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+          <Info size={24} style={{ color: 'var(--accent-primary)', flexShrink: 0 }} />
           <div className="setup-content">
             <h4>Getting Started</h4>
             <p>The AI prediction system is ready to use:</p>
@@ -266,29 +265,34 @@ const PredictionsDashboard = () => {
 
       {/* Action Buttons */}
       <div className="actions-section">
-        <h3>🎯 Quick Actions</h3>
+        <h3>Quick Actions</h3>
         <div className="actions-grid">
           <button
             className="btn btn-success"
             onClick={predictNextDay}
             disabled={loading || apiStatus?.status !== 'online'}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}
           >
-            🔮 Predict Tomorrow
+            <Sparkles size={16} /> Predict Tomorrow
           </button>
           
           <button
             className="btn btn-info"
             onClick={getInsights}
             disabled={loading || apiStatus?.status !== 'online'}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}
           >
-            📈 Get Insights
+            <LineChart size={16} /> Get Insights
           </button>
         </div>
       </div>
 
       {/* Weekly Forecast Section */}
       <div className="forecast-section">
-        <h3>📅 Weekly Forecast</h3>
+        <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <Calendar size={18} style={{ color: 'var(--accent-primary)' }} />
+          Weekly Forecast
+        </h3>
         <div className="forecast-controls">
           <label>
             Forecast Days:
@@ -305,8 +309,9 @@ const PredictionsDashboard = () => {
             className="btn btn-primary"
             onClick={predictWeekly}
             disabled={loading || apiStatus?.status !== 'online'}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
           >
-            Generate Forecast
+            <Sparkles size={14} /> Generate Forecast
           </button>
         </div>
       </div>
@@ -314,7 +319,10 @@ const PredictionsDashboard = () => {
       {/* Next Day Predictions */}
       {predictions && (
         <div className="predictions-card">
-          <h3>🔮 Tomorrow's Predictions ({predictions.date})</h3>
+          <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Sparkles size={20} style={{ color: 'var(--accent-primary)' }} />
+            Tomorrow's Predictions ({predictions.date})
+          </h3>
           <div className="prediction-summary">
             <div className="summary-item">
               <span className="summary-label">Total Meals:</span>
@@ -366,7 +374,10 @@ const PredictionsDashboard = () => {
       {/* Weekly Predictions */}
       {weeklyPredictions && weeklyPredictions.daily_summary && weeklyPredictions.daily_summary.length > 0 && (
         <div className="predictions-card">
-          <h3>📅 {forecastDays}-Day Forecast</h3>
+          <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Calendar size={20} style={{ color: 'var(--accent-primary)' }} />
+            {forecastDays}-Day Forecast
+          </h3>
           <div className="prediction-summary">
             <div className="summary-item">
               <span className="summary-label">Total Meals:</span>
@@ -408,12 +419,18 @@ const PredictionsDashboard = () => {
       {/* Insights */}
       {insights && (
         <div className="insights-card">
-          <h3>💡 Trend Insights</h3>
+          <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Lightbulb size={20} style={{ color: 'var(--accent-primary)' }} />
+            Trend Insights
+          </h3>
           
           {/* Data Period */}
           {insights.data_period && (
             <div className="insight-section">
-              <h4>📅 Data Period</h4>
+              <h4 style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Calendar size={16} style={{ color: 'var(--accent-primary)' }} />
+                Data Period
+              </h4>
               <div className="insight-grid">
                 <div className="insight-item">
                   <span className="insight-label">Period:</span>
@@ -430,7 +447,10 @@ const PredictionsDashboard = () => {
           {/* Day of Week Analysis */}
           {insights.day_of_week && (
             <div className="insight-section">
-              <h4>📊 Average Meals by Day</h4>
+              <h4 style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <BarChart3 size={16} style={{ color: 'var(--accent-primary)' }} />
+                Average Meals by Day
+              </h4>
               <div className="day-bars">
                 {Object.entries(insights.day_of_week.avg_by_day)
                   .filter(([day]) => day !== 'Sunday') // Exclude Sunday from display
@@ -450,9 +470,15 @@ const PredictionsDashboard = () => {
                     </div>
                   ))}
               </div>
-              <div className="insight-highlight">
-                <span className="highlight-good">🏆 Best Day: {insights.day_of_week.best_day}</span>
-                <span className="highlight-holiday">🏖️ Sunday: Holiday (No Service)</span>
+              <div className="insight-highlight" style={{ display: 'flex', gap: '16px', marginTop: '12px' }}>
+                <span className="highlight-good" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                  <Trophy size={14} style={{ color: 'var(--success)' }} />
+                  Best Day: {insights.day_of_week.best_day}
+                </span>
+                <span className="highlight-holiday" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                  <Palmtree size={14} style={{ color: 'var(--text-tertiary)' }} />
+                  Sunday: Holiday (No Service)
+                </span>
               </div>
             </div>
           )}
@@ -460,7 +486,10 @@ const PredictionsDashboard = () => {
           {/* Holiday Impact */}
           {insights.holiday_impact && (
             <div className="insight-section">
-              <h4>🎉 Holiday Impact</h4>
+              <h4 style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Sparkles size={16} style={{ color: 'var(--accent-primary)' }} />
+                Holiday Impact
+              </h4>
               <div className="insight-grid">
                 <div className="insight-item">
                   <span className="insight-label">Regular Days:</span>
@@ -477,7 +506,10 @@ const PredictionsDashboard = () => {
           {/* Top Items */}
           {insights.top_items && (
             <div className="insight-section">
-              <h4>⭐ Top Menu Items</h4>
+              <h4 style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Star size={16} style={{ color: 'var(--warning)' }} />
+                Top Menu Items
+              </h4>
               <div className="top-items-list">
                 {insights.top_items.slice(0, 5).map((item, index) => (
                   <div key={index} className="top-item">
@@ -494,7 +526,10 @@ const PredictionsDashboard = () => {
           {/* Trends */}
           {insights.trends && (
             <div className="insight-section">
-              <h4>📈 Trends</h4>
+              <h4 style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <TrendingUp size={16} style={{ color: 'var(--accent-primary)' }} />
+                Trends
+              </h4>
               <div className="trend-summary">
                 <p>{insights.trends.summary}</p>
               </div>
@@ -505,11 +540,13 @@ const PredictionsDashboard = () => {
 
       {/* Offline Message */}
       {apiStatus?.status === 'offline' && (
-        <div className="offline-message">
-          <div className="offline-icon">🔌</div>
+        <div className="offline-message" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
+          <div className="offline-icon" style={{ marginBottom: '12px' }}>
+            <PowerOff size={48} style={{ color: 'var(--error)' }} />
+          </div>
           <h3>ML Service Offline</h3>
           <p>The prediction service is not running. To start it:</p>
-          <ol>
+          <ol style={{ textAlign: 'left', display: 'inline-block', margin: '12px 0 0 0' }}>
             <li>Navigate to the <code>canteen_management_system</code> folder</li>
             <li>Run <code>python app.py</code> or double-click <code>START.bat</code></li>
             <li>The service will start on <code>http://localhost:5000</code></li>

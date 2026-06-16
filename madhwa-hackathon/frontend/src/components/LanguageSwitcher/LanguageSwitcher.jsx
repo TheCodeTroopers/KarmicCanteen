@@ -12,6 +12,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
+import { ChevronDown, Check } from 'lucide-react';
 import { SUPPORTED_LANGUAGES, changeLanguage, getCurrentLanguage } from '../../i18n/i18n';
 import './LanguageSwitcher.css';
 
@@ -89,7 +90,7 @@ const LanguageSwitcher = () => {
           {currentLang.flag}
         </span>
         <span className="language-name">{currentLang.nativeName}</span>
-        <span className={`language-arrow ${isOpen ? 'open' : ''}`}>▼</span>
+        <ChevronDown size={14} className={`language-arrow ${isOpen ? 'open' : ''}`} />
       </button>
 
       {isOpen && (
@@ -115,7 +116,7 @@ const LanguageSwitcher = () => {
                   <span className="language-english-name">{language.name}</span>
                 </div>
                 {isActive && (
-                  <span className="language-check" aria-label="Selected">✓</span>
+                  <Check size={14} className="language-check" aria-label="Selected" />
                 )}
               </button>
             );
