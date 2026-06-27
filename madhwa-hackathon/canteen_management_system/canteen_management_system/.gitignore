@@ -2,7 +2,7 @@
 firebase-credentials.json
 firebase-*.json
 *-credentials.json
-
+serviceAccountKey.json
 # Python
 __pycache__/
 *.py[cod]
