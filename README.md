@@ -139,9 +139,9 @@ KarmicCanteen/
 3. Configure your Firebase credentials (place your Service Account JSON file in the folder and update `config.py` / environment variables).
 4. Run the Flask API server:
    ```bash
-   python app.py
+   python app_with_cors.py
    ```
-   *(Alternatively, on Windows, double-click `START.bat` or `START_ML_SERVER.bat`)*
+   *(Alternatively, on Windows, double-click `START_ML_SERVER.bat`)*
 5. The ML API server will run locally at `http://localhost:5000`.
 
 ---
