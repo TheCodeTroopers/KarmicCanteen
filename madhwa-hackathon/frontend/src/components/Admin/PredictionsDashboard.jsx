@@ -548,7 +548,7 @@ const PredictionsDashboard = () => {
           <p>The prediction service is not running. To start it:</p>
           <ol style={{ textAlign: 'left', display: 'inline-block', margin: '12px 0 0 0' }}>
             <li>Navigate to the <code>canteen_management_system</code> folder</li>
-            <li>Run <code>python app.py</code> or double-click <code>START.bat</code></li>
+            <li>Run <code>python app_with_cors.py</code> or double-click <code>START_ML_SERVER.bat</code></li>
             <li>The service will start on <code>http://localhost:5000</code></li>
           </ol>
         </div>
