@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { collection, getDocs } from 'firebase/firestore';
 import { db } from '../../firebase/config';
+import { getLocalDateString } from '../../utils/dateUtils';
 import { useTranslation } from 'react-i18next';
 import './AnalyticsDashboard.css';
 
@@ -29,7 +30,7 @@ const AnalyticsDashboard = () => {
   const getTomorrowDate = () => {
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
-    return tomorrow.toISOString().split('T')[0];
+    return getLocalDateString(tomorrow);
   };
 
   const fetchAnalytics = async () => {

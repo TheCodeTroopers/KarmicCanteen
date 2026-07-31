@@ -8,6 +8,8 @@ import {
 } from 'lucide-react';
 import './WeeklyMealSelector.css';
 
+import { getLocalDateString } from '../../utils/dateUtils';
+
 const WeeklyMealSelector = () => {
   const { currentUser } = useAuth();
   const [weekDays, setWeekDays] = useState([]);
@@ -57,7 +59,7 @@ const WeeklyMealSelector = () => {
       // Skip Sunday
       if (date.getDay() === 0) continue;
       
-      const dateStr = date.toISOString().split('T')[0];
+     const dateStr = getLocalDateString(date);
       days.push({
         date: dateStr,
         dayName: date.toLocaleDateString('en-US', { weekday: 'short' }),

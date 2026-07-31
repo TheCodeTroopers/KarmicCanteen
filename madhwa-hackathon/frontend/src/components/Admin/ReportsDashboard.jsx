@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { collection, getDocs, doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '../../firebase/config';
+import { getLocalDateString } from '../../utils/dateUtils';
 import './ReportsDashboard.css';
 
 const ReportsDashboard = () => {
@@ -16,7 +17,7 @@ const ReportsDashboard = () => {
     // Set tomorrow as default (since employees select for tomorrow)
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
-    setSelectedDate(tomorrow.toISOString().split('T')[0]);
+   setSelectedDate(getLocalDateString(tomorrow));
     fetchAllReports();
   }, []);
 
