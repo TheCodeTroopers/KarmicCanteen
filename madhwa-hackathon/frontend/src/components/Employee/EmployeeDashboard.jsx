@@ -13,7 +13,7 @@ import WorkingModeSelector from './WorkingModeSelector';
 import WorkingFromHome from './WorkingFromHome';
 import WeeklyMealSelector from './WeeklyMealSelector';
 import './EmployeeDashboard.css';
-
+import { getLocalDateString } from '../../utils/dateUtils';
 const EmployeeDashboard = () => {
   const { currentUser } = useAuth();
   const { t } = useTranslation();
@@ -75,7 +75,7 @@ const EmployeeDashboard = () => {
     // Always get fresh date to ensure it updates at midnight
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
-    const dateStr = tomorrow.toISOString().split('T')[0];
+    const dateStr = getLocalDateString(tomorrow);
     console.log('Tomorrow date:', dateStr); // Debug log
     return dateStr;
   };
@@ -144,7 +144,7 @@ const EmployeeDashboard = () => {
   const fetchTomorrowMenu = async () => {
     try {
       const tomorrow = getTomorrowDate();
-      const today = new Date().toISOString().split('T')[0];
+     const today = getLocalDateString();
       
       // First try to get tomorrow's menu
       const menuRef = doc(db, 'menus', tomorrow);
