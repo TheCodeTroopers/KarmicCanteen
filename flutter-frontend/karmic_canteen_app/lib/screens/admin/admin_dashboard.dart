@@ -45,7 +45,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'language',
+                  'language'.tr(),
                   style: const TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
@@ -59,6 +59,11 @@ class _AdminDashboardState extends State<AdminDashboard> {
             ),
             const SizedBox(height: 16),
             _buildLanguageTile('English', '🇬🇧', const Locale('en')),
+            const Divider(),
+            _buildLanguageTile('[translate:हिंदी]', '🇮🇳', const Locale('hi')),
+            const Divider(),
+            _buildLanguageTile('[translate:ಕನ್ನಡ]', '🇮🇳', const Locale('kn')),
+            const SizedBox(height: 16),
           ],
         ),
       ),
@@ -103,19 +108,19 @@ class _AdminDashboardState extends State<AdminDashboard> {
   String _getScreenTitle() {
     switch (_selectedIndex) {
       case 0:
-        return 'analytics';
+        return 'analytics'.tr();
       case 1:
-        return 'menu';
+        return 'menu'.tr();
       case 2:
-        return 'reports';
+        return 'reports'.tr();
       case 3:
         return 'Food Donation';
       case 4:
         return 'Festival Broadcast';
       case 5:
-        return 'settings';
+        return 'settings'.tr();
       default:
-        return 'adminDashboard';
+        return 'adminDashboard'.tr();
     }
   }
 
@@ -129,9 +134,14 @@ class _AdminDashboardState extends State<AdminDashboard> {
         backgroundColor: const Color(0xFF21808D),
         actions: [
           IconButton(
+            icon: const Icon(Icons.language),
+            onPressed: _showLanguageSelector,
+            tooltip: 'language'.tr(),
+          ),
+          IconButton(
             icon: const Icon(Icons.logout),
             onPressed: () => authProvider.signOut(),
-            tooltip: 'logout',
+            tooltip: 'logout'.tr(),
           ),
         ],
       ),
@@ -149,17 +159,17 @@ class _AdminDashboardState extends State<AdminDashboard> {
           NavigationDestination(
             icon: const Icon(Icons.analytics_outlined),
             selectedIcon: const Icon(Icons.analytics),
-            label: 'analytics',
+            label: 'analytics'.tr(),
           ),
           NavigationDestination(
             icon: const Icon(Icons.restaurant_menu_outlined),
             selectedIcon: const Icon(Icons.restaurant_menu),
-            label: 'menu',
+            label: 'menu'.tr(),
           ),
           NavigationDestination(
             icon: const Icon(Icons.assessment_outlined),
             selectedIcon: const Icon(Icons.assessment),
-            label: 'reports',
+            label: 'reports'.tr(),
           ),
           const NavigationDestination(
             icon: Icon(Icons.volunteer_activism_outlined),
@@ -174,7 +184,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
           NavigationDestination(
             icon: const Icon(Icons.settings_outlined),
             selectedIcon: const Icon(Icons.settings),
-            label: 'settings',
+            label: 'settings'.tr(),
           ),
         ],
       ),
