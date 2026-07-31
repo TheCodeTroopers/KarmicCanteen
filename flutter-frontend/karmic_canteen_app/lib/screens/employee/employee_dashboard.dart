@@ -344,7 +344,7 @@ Widget _buildWeeklyModeButton() {
     if (_isWFH) return;
 
     if (_isDeadlinePassed) {
-      _showMessage('deadlinePassed', isError: true);
+      _showMessage('deadlinePassed'.tr(), isError: true);
       return;
     }
 
@@ -384,7 +384,7 @@ Widget _buildWeeklyModeButton() {
         _isSaving = false;
       });
 
-      _showMessage('mealsSaved');
+      _showMessage('mealsSaved'.tr());
 
       await NotificationService.showNotification(
         title: 'Meal Selection Saved',
@@ -429,7 +429,7 @@ Widget _buildWeeklyModeButton() {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'language',
+                  'language'.tr(),
                   style: const TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
@@ -443,6 +443,12 @@ Widget _buildWeeklyModeButton() {
             ),
             const SizedBox(height: 16),
             _buildLanguageTile('English', '🇬🇧', const Locale('en')),
+            const Divider(),
+            _buildLanguageTile('[translate:हिंदी]', '🇮🇳', const Locale('hi')),
+            const Divider(),
+            _buildLanguageTile('[translate:ಕನ್ನಡ]', '🇮🇳', const Locale('kn')),
+            const SizedBox(height: 16),
+          ],
         ),
       ),
     );
@@ -520,7 +526,7 @@ Widget _buildWeeklyModeButton() {
     
     return Scaffold(
       appBar: AppBar(
-        title: Text(_workMode == null ? 'Dashboard' : (_isWFH ? 'Dashboard' : 'selectYourMeals')),
+        title: Text(_workMode == null ? 'Dashboard' : (_isWFH ? 'Dashboard' : 'selectYourMeals'.tr())),
         actions: [
           // Add this button to employee_dashboard.dart app bar actions
 
@@ -538,9 +544,14 @@ IconButton(
 ),
 
           IconButton(
+            icon: const Icon(Icons.language),
+            onPressed: _showLanguageSelector,
+            tooltip: 'language'.tr(),
+          ),
+          IconButton(
             icon: const Icon(Icons.logout),
             onPressed: () => authProvider.signOut(),
-            tooltip: 'logout',
+            tooltip: 'logout'.tr(),
           ),
         ],
       ),
@@ -569,14 +580,14 @@ IconButton(
                                         const SizedBox(height: 16),
                                         if (_message != null) _buildMessageCard(),
                                         if (_message != null) const SizedBox(height: 16),
-                                        _buildMealSection('breakfast', _menu!.breakfast, 'breakfast', '🌅'),
+                                        _buildMealSection('breakfast'.tr(), _menu!.breakfast, 'breakfast', '🌅'),
                                         const SizedBox(height: 16),
-                                        _buildMealSection('lunch', _menu!.lunch, 'lunch', '🍽️'),
+                                        _buildMealSection('lunch'.tr(), _menu!.lunch, 'lunch', '🍽️'),
                                         const SizedBox(height: 16),
-                                        _buildMealSection('snacks', _menu!.snacks, 'snacks', '☕'),
+                                        _buildMealSection('snacks'.tr(), _menu!.snacks, 'snacks', '☕'),
                                         const SizedBox(height: 16),
                                         // ✅ FIXED: Changed emoji from 🌙 to 🍲
-                                        _buildMealSection('dinner', _menu!.dinner, 'dinner', '🍲'),
+                                        _buildMealSection('dinner'.tr(), _menu!.dinner, 'dinner', '🍲'),
                                         const SizedBox(height: 24),
                                         _buildSummaryCard(),
                                         const SizedBox(height: 16),
@@ -818,7 +829,7 @@ IconButton(
               ),
               const SizedBox(height: 16),
               Text(
-                'noMenuAvailable',
+                'noMenuAvailable'.tr(),
                 style: const TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
@@ -826,7 +837,7 @@ IconButton(
               ),
               const SizedBox(height: 8),
               Text(
-                'menuNotPublished',
+                'menuNotPublished'.tr(),
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 14,
@@ -856,7 +867,7 @@ IconButton(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'selectYourMeals',
+                        'selectYourMeals'.tr(),
                         style: const TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
@@ -967,7 +978,7 @@ IconButton(
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
-                      'selected',
+                      'selected'.tr(),
                       style: TextStyle(
                         fontSize: 12,
                         color: Colors.green.shade700,
@@ -1102,7 +1113,7 @@ IconButton(
               ),
             )
           : Text(
-              _hasUnsavedChanges() ? 'savePreferences' : 'noChanges',
+              _hasUnsavedChanges() ? 'savePreferences'.tr() : 'noChanges'.tr(),
               style: const TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
@@ -1134,7 +1145,7 @@ IconButton(
           Expanded(
             child: Text(
               _isDeadlinePassed
-                  ? 'selectionDeadline'
+                  ? 'selectionDeadline'.tr()
                   : 'You can modify your selection until ${DateFormat('h:mm a').format(_deadline!)} today',
               style: TextStyle(
                 fontSize: 12,

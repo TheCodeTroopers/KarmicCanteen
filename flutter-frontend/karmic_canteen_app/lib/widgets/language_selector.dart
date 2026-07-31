@@ -14,7 +14,7 @@ class LanguageSelector extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Language',
+              'Language'.tr(),
               style: const TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
@@ -26,6 +26,18 @@ class LanguageSelector extends StatelessWidget {
               'English',
               '🇬🇧',
               const Locale('en'),
+            ),
+            _buildLanguageTile(
+              context,
+              'हिंदी',
+              '🇮🇳',
+              const Locale('hi'),
+            ),
+            _buildLanguageTile(
+              context,
+              'ಕನ್ನಡ',
+              '🇮🇳',
+              const Locale('kn'),
             ),
           ],
         ),
