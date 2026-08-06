@@ -59,6 +59,11 @@ class _AdminDashboardState extends State<AdminDashboard> {
         backgroundColor: const Color(0xFF21808D),
         actions: [
           IconButton(
+            icon: const Icon(Icons.language),
+            onPressed: _showLanguageSelector,
+            tooltip: 'language'.tr(),
+          ),
+          IconButton(
             icon: const Icon(Icons.logout),
             onPressed: () => authProvider.signOut(),
             tooltip: 'logout'.tr(),

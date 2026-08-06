@@ -18,11 +18,19 @@ import LanguageDetector from 'i18next-browser-languagedetector';
 
 // Import translation resources
 import translationEN from './locales/en/translation.json';
+import translationHI from './locales/hi/translation.json';
+import translationKN from './locales/kn/translation.json';
 
 // Translation resources
 const resources = {
   en: {
     translation: translationEN
+  },
+  hi: {
+    translation: translationHI
+  },
+  kn: {
+    translation: translationKN
   }
 };
 
@@ -33,6 +41,20 @@ export const SUPPORTED_LANGUAGES = [
     name: 'English',
     nativeName: 'English',
     flag: '🇬🇧',
+    dir: 'ltr'
+  },
+  {
+    code: 'hi',
+    name: 'Hindi',
+    nativeName: 'हिंदी',
+    flag: '🇮🇳',
+    dir: 'ltr'
+  },
+  {
+    code: 'kn',
+    name: 'Kannada',
+    nativeName: 'ಕನ್ನಡ',
+    flag: '🇮🇳',
     dir: 'ltr'
   }
 ];
@@ -71,10 +93,10 @@ i18n
     fallbackLng: 'en',
     
     // Supported languages
-    supportedLngs: ['en'],
+    supportedLngs: ['en', 'hi', 'kn'],
     
     // Language to use if no language detected
-    lng: 'en', // Let detector decide
+    lng: undefined, // Let detector decide
     
     // Debug mode (set to false in production)
     debug: process.env.NODE_ENV === 'development',

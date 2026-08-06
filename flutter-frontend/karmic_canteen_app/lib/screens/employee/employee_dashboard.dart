@@ -414,6 +414,42 @@ Widget _buildWeeklyModeButton() {
   }
 
  
+  void _showLanguageSelector() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'language'.tr(),
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: () => Navigator.pop(context),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            _buildLanguageTile('English', '🇬🇧', const Locale('en')),
+            const SizedBox(height: 16),
+          ],
+        ),
+      ),
+    );
+  }
 
 
   String _formattedDate() {
@@ -469,6 +505,11 @@ IconButton(
   },
   tooltip: 'Events & Celebrations',
 ),
+          IconButton(
+            icon: const Icon(Icons.language),
+            onPressed: _showLanguageSelector,
+            tooltip: 'language'.tr(),
+          ),
           IconButton(
             icon: const Icon(Icons.logout),
             onPressed: () => authProvider.signOut(),

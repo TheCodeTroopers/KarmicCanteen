@@ -27,6 +27,18 @@ class LanguageSelector extends StatelessWidget {
               '🇬🇧',
               const Locale('en'),
             ),
+            _buildLanguageTile(
+              context,
+              'हिंदी',
+              '🇮🇳',
+              const Locale('hi'),
+            ),
+            _buildLanguageTile(
+              context,
+              'ಕನ್ನಡ',
+              '🇮🇳',
+              const Locale('kn'),
+            ),
           ],
         ),
       ),
