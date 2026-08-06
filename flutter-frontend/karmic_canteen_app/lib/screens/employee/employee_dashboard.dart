@@ -413,81 +413,8 @@ Widget _buildWeeklyModeButton() {
     });
   }
 
-  void _showLanguageSelector() {
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) => Container(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'language'.tr(),
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.close),
-                  onPressed: () => Navigator.pop(context),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            _buildLanguageTile('English', '🇬🇧', const Locale('en')),
-            const Divider(),
-            _buildLanguageTile('[translate:हिंदी]', '🇮🇳', const Locale('hi')),
-            const Divider(),
-            _buildLanguageTile('[translate:ಕನ್ನಡ]', '🇮🇳', const Locale('kn')),
-            const SizedBox(height: 16),
-          ],
-        ),
-      ),
-    );
-  }
+ 
 
-  Widget _buildLanguageTile(String language, String flag, Locale locale) {
-    final isSelected = context.locale == locale;
-
-    return ListTile(
-      leading: Text(flag, style: const TextStyle(fontSize: 32)),
-      title: Text(
-        language,
-        style: TextStyle(
-          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-        ),
-      ),
-      trailing: isSelected
-          ? const Icon(Icons.check_circle, color: Color(0xFF21808D))
-          : null,
-      selected: isSelected,
-      selectedTileColor: Colors.teal.shade50,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(8),
-      ),
-      onTap: () async {
-        await context.setLocale(locale);
-        if (mounted) {
-          Navigator.pop(context);
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Language changed to $language'),
-              duration: const Duration(seconds: 2),
-            ),
-          );
-          setState(() {});
-        }
-      },
-    );
-  }
 
   String _formattedDate() {
     // Always show tomorrow's date
@@ -542,12 +469,6 @@ IconButton(
   },
   tooltip: 'Events & Celebrations',
 ),
-
-          IconButton(
-            icon: const Icon(Icons.language),
-            onPressed: _showLanguageSelector,
-            tooltip: 'language'.tr(),
-          ),
           IconButton(
             icon: const Icon(Icons.logout),
             onPressed: () => authProvider.signOut(),
