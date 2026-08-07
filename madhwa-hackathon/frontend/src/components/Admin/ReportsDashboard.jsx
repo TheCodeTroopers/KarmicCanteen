@@ -10,6 +10,8 @@ const ReportsDashboard = () => {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
   const [allReports, setAllReports] = useState([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const PARTICIPANTS_PER_PAGE = 1;
   const [menu, setMenu] = useState(null);
 
   useEffect(() => {
@@ -210,6 +212,25 @@ const ReportsDashboard = () => {
     if (!report) return 0;
     return report.breakfast + report.lunch + report.snacks;
   };
+  // Pagination calculations for participants table
+const totalParticipantPages = report?.participants 
+  ? Math.ceil(report.participants.length / PARTICIPANTS_PER_PAGE) 
+  : 0;
+
+const paginatedParticipants = report?.participants
+  ? report.participants.slice(
+      (currentPage - 1) * PARTICIPANTS_PER_PAGE,
+      currentPage * PARTICIPANTS_PER_PAGE
+    )
+  : [];
+
+const goToNextPage = () => {
+  if (currentPage < totalParticipantPages) setCurrentPage(currentPage + 1);
+};
+
+const goToPreviousPage = () => {
+  if (currentPage > 1) setCurrentPage(currentPage - 1);
+};
 
   return (
     <div className="reports-dashboard">
@@ -349,9 +370,9 @@ const ReportsDashboard = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {report.participants.map((p, index) => (
+                    {paginatedParticipants.map((p, index) => (
                       <tr key={index}>
-                        <td>{index + 1}</td>
+                       <td>{(currentPage - 1) * PARTICIPANTS_PER_PAGE + index + 1}</td>
                         <td>{p.email}</td>
                         <td>
                           <span className={`badge ${p.breakfast ? 'yes' : 'no'}`}>
@@ -373,6 +394,28 @@ const ReportsDashboard = () => {
                   </tbody>
                 </table>
               </div>
+              {totalParticipantPages > 1 && (
+      <div className="pagination-controls">
+        <button
+          className="btn btn-secondary btn-sm"
+          onClick={goToPreviousPage}
+          disabled={currentPage === 1}
+        >
+          ← Previous
+        </button>
+        <span className="pagination-info">
+          Page {currentPage} of {totalParticipantPages}
+        </span>
+        <button
+          className="btn btn-secondary btn-sm"
+          onClick={goToNextPage}
+          disabled={currentPage === totalParticipantPages}
+        >
+          Next →
+        </button>
+      </div>
+    )}
+              
             </div>
           )}
         </>
