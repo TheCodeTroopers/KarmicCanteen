@@ -461,21 +461,6 @@ const EmployeeDashboard = () => {
           </h1>
           <p className="subtitle">{t('employee.dashboard.subtitle')}</p>
         </div>
-        <div className="deadline-info">
-          <span className={`deadline-badge ${deadlinePassed ? 'expired' : 'active'}`}>
-            {deadlinePassed ? (
-              <>
-                <Lock size={14} style={{ marginRight: '4px', verticalAlign: 'middle' }} />
-                {t('dashboard.deadlinePassed')}
-              </>
-            ) : (
-              <>
-                <Clock size={14} style={{ marginRight: '4px', verticalAlign: 'middle' }} />
-                {getTimeUntilDeadline()}
-              </>
-            )}
-          </span>
-        </div>
       </div>
 
       {/* Working Mode Indicator */}
