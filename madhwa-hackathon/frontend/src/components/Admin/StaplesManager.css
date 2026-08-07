@@ -1,0 +1,233 @@
+/* src/components/Admin/StaplesManager.css */
+
+.staples-manager {
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+/* Intro banner */
+.staples-intro {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  background: linear-gradient(135deg, #fff7ed, #fef3e2);
+  border: 1px solid #fed7aa;
+  border-radius: 16px;
+  padding: 18px 20px;
+  margin-bottom: 24px;
+}
+
+.staples-intro-icon {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #f97316;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.staples-intro h3 {
+  margin: 0 0 6px 0;
+  font-size: 16px;
+  color: #7c2d12;
+}
+
+.staples-intro p {
+  margin: 0;
+  font-size: 14px;
+  color: #9a3412;
+  line-height: 1.5;
+}
+
+/* Editor card */
+.staples-editor {
+  background: #ffffff;
+  border-radius: 20px;
+  padding: 24px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+}
+
+.staples-header-row {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 20px;
+}
+
+.staples-total-badge {
+  background: #fff1e6;
+  color: #ea580c;
+  font-weight: 700;
+  font-size: 13px;
+  padding: 6px 14px;
+  border-radius: 999px;
+}
+
+/* Grid of meal sections — 2 columns on desktop */
+.staples-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px;
+}
+
+@media (max-width: 768px) {
+  .staples-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.staple-section {
+  border: 1px solid #f1f5f9;
+  border-radius: 16px;
+  padding: 18px;
+  background: #fafafa;
+  transition: box-shadow 0.2s ease;
+}
+
+.staple-section:hover {
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.06);
+}
+
+.staple-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 14px;
+}
+
+.staple-section-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+  font-size: 15px;
+  color: #1e293b;
+}
+
+.staple-section .item-count {
+  font-size: 12px;
+  font-weight: 600;
+  color: #94a3b8;
+  background: #f1f5f9;
+  padding: 3px 10px;
+  border-radius: 999px;
+}
+
+/* Add-item form */
+.staple-section .add-item-form {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.staple-section .add-item-form input {
+  flex: 1;
+  padding: 10px 14px;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 10px;
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.2s ease;
+}
+
+.staple-section .add-item-form input:focus {
+  border-color: #f97316;
+}
+
+.staple-section .add-item-form button {
+  padding: 10px 16px;
+  border-radius: 10px;
+  font-size: 14px;
+  white-space: nowrap;
+  background: #f97316;
+  border: none;
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.staple-section .add-item-form button:hover {
+  background: #ea580c;
+}
+
+/* Item chips — Swiggy/Zomato style pill tags */
+.items-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.staple-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: #ffffff;
+  border: 1.5px solid #fed7aa;
+  color: #9a3412;
+  padding: 6px 8px 6px 14px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.staple-tag .remove-btn {
+  background: #fed7aa;
+  color: #9a3412;
+  border: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s ease;
+}
+
+.staple-tag .remove-btn:hover {
+  background: #f97316;
+  color: white;
+}
+
+.staple-section .empty-list {
+  font-size: 13px;
+  color: #94a3b8;
+  font-style: italic;
+  margin: 0;
+}
+
+/* Save button */
+.staples-editor .save-section {
+  margin-top: 24px;
+  display: flex;
+  justify-content: center;
+}
+
+.staples-editor .btn-large {
+  padding: 14px 40px;
+  border-radius: 999px;
+  font-size: 15px;
+  font-weight: 700;
+  background: linear-gradient(135deg, #f97316, #ea580c);
+  border: none;
+  color: white;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(249, 115, 22, 0.3);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.staples-editor .btn-large:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(249, 115, 22, 0.4);
+}
+
+.staples-editor .btn-large:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
