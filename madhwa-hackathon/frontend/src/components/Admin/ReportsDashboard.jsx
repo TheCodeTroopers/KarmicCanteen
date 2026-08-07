@@ -10,6 +10,8 @@ const ReportsDashboard = () => {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
   const [allReports, setAllReports] = useState([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const PARTICIPANTS_PER_PAGE = 10;
   const [menu, setMenu] = useState(null);
 
   useEffect(() => {
@@ -103,18 +105,22 @@ const ReportsDashboard = () => {
         if (!snapshot.empty) {
           hasSelections = true;
           snapshot.forEach(doc => {
-            const data = doc.data();
-            if (data.breakfast) counts.breakfast++;
-            if (data.lunch) counts.lunch++;
-            if (data.snacks) counts.snacks++;
-            
-            participants.push({
-              email: data.email || 'Unknown',
-              breakfast: data.breakfast || false,
-              lunch: data.lunch || false,
-              snacks: data.snacks || false
-            });
-          });
+             const data = doc.data();
+             const breakfastItems = Array.isArray(data.breakfast) ? data.breakfast : [];
+             const lunchItems = Array.isArray(data.lunch) ? data.lunch : [];
+             const snacksItems = Array.isArray(data.snacks) ? data.snacks : [];
+
+             if (breakfastItems.length > 0) counts.breakfast++;
+             if (lunchItems.length > 0) counts.lunch++;
+             if (snacksItems.length > 0) counts.snacks++;
+
+             participants.push({
+               email: data.email || 'Unknown',
+               breakfast: breakfastItems,
+               lunch: lunchItems,
+               snacks: snacksItems
+                        });
+           });
         }
       } catch (error) {
         console.log('Error fetching meal selections:', error);
@@ -156,19 +162,19 @@ const ReportsDashboard = () => {
     let snacksCount = 0;
 
     // Add participant rows and count selections
-    report.participants?.forEach(p => {
-      csvRows.push([
-        p.email,
-        p.breakfast ? 'Yes' : 'No',
-        p.lunch ? 'Yes' : 'No',
-        p.snacks ? 'Yes' : 'No'
-      ]);
+ report.participants?.forEach(p => {
+  csvRows.push([
+    p.email,
+    p.breakfast.length > 0 ? p.breakfast.join('; ') : 'None',
+    p.lunch.length > 0 ? p.lunch.join('; ') : 'None',
+    p.snacks.length > 0 ? p.snacks.join('; ') : 'None'
+  ]);
 
-      // Count selections
-      if (p.breakfast) breakfastCount++;
-      if (p.lunch) lunchCount++;
-      if (p.snacks) snacksCount++;
-    });
+  // Count selections
+  if (p.breakfast.length > 0) breakfastCount++;
+  if (p.lunch.length > 0) lunchCount++;
+  if (p.snacks.length > 0) snacksCount++;
+});
 
     // Add empty row for separation
     csvRows.push([]);
@@ -210,6 +216,25 @@ const ReportsDashboard = () => {
     if (!report) return 0;
     return report.breakfast + report.lunch + report.snacks;
   };
+  // Pagination calculations for participants table
+const totalParticipantPages = report?.participants 
+  ? Math.ceil(report.participants.length / PARTICIPANTS_PER_PAGE) 
+  : 0;
+
+const paginatedParticipants = report?.participants
+  ? report.participants.slice(
+      (currentPage - 1) * PARTICIPANTS_PER_PAGE,
+      currentPage * PARTICIPANTS_PER_PAGE
+    )
+  : [];
+
+const goToNextPage = () => {
+  if (currentPage < totalParticipantPages) setCurrentPage(currentPage + 1);
+};
+
+const goToPreviousPage = () => {
+  if (currentPage > 1) setCurrentPage(currentPage - 1);
+};
 
   return (
     <div className="reports-dashboard">
@@ -340,39 +365,61 @@ const ReportsDashboard = () => {
               <div className="table-wrapper">
                 <table>
                   <thead>
-                    <tr>
-                      <th>#</th>
-                      <th>Email</th>
-                      <th>🌅 Breakfast</th>
-                      <th>🌞 Lunch</th>
-                      <th>🌙 Snacks</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {report.participants.map((p, index) => (
-                      <tr key={index}>
-                        <td>{index + 1}</td>
-                        <td>{p.email}</td>
-                        <td>
-                          <span className={`badge ${p.breakfast ? 'yes' : 'no'}`}>
-                            {p.breakfast ? '✓' : '×'}
-                          </span>
-                        </td>
-                        <td>
-                          <span className={`badge ${p.lunch ? 'yes' : 'no'}`}>
-                            {p.lunch ? '✓' : '×'}
-                          </span>
-                        </td>
-                        <td>
-                          <span className={`badge ${p.snacks ? 'yes' : 'no'}`}>
-                            {p.snacks ? '✓' : '×'}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
+  <tr>
+    <th>#</th>
+    <th>Email</th>
+    <th>🌅 Breakfast</th>
+    <th>🌞 Lunch</th>
+    <th>🌙 Snacks</th>
+  </tr>
+</thead>
+<tbody>
+  {report.participants.map((p, index) => (
+    <tr key={index}>
+      <td>{index + 1}</td>
+      <td>{p.email}</td>
+      <td>
+        {p.breakfast.length > 0 
+          ? <span className="items-cell">{p.breakfast.join(', ')}</span> 
+          : <span className="badge no">—</span>}
+      </td>
+      <td>
+        {p.lunch.length > 0 
+          ? <span className="items-cell">{p.lunch.join(', ')}</span> 
+          : <span className="badge no">—</span>}
+      </td>
+      <td>
+        {p.snacks.length > 0 
+          ? <span className="items-cell">{p.snacks.join(', ')}</span> 
+          : <span className="badge no">—</span>}
+      </td>
+    </tr>
+  ))}
+</tbody>
                 </table>
               </div>
+              {totalParticipantPages > 1 && (
+      <div className="pagination-controls">
+        <button
+          className="btn btn-secondary btn-sm"
+          onClick={goToPreviousPage}
+          disabled={currentPage === 1}
+        >
+          ← Previous
+        </button>
+        <span className="pagination-info">
+          Page {currentPage} of {totalParticipantPages}
+        </span>
+        <button
+          className="btn btn-secondary btn-sm"
+          onClick={goToNextPage}
+          disabled={currentPage === totalParticipantPages}
+        >
+          Next →
+        </button>
+      </div>
+    )}
+              
             </div>
           )}
         </>
