@@ -26,8 +26,11 @@ const MenuManager = () => {
     // Set tomorrow as default date
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
-    setSelectedDate(tomorrow.toISOString().split('T')[0]);
-    
+    //  FIXED (Local YYYY-MM-DD format):
+    const year = tomorrow.getFullYear();
+    const month = String(tomorrow.getMonth() + 1).padStart(2, '0');
+    const day = String(tomorrow.getDate()).padStart(2, '0');
+    setSelectedDate(`${year}-${month}-${day}`);
     fetchExistingMenus();
   }, []);
 
@@ -144,8 +147,9 @@ const MenuManager = () => {
       const menuData = {
         ...menuItems,
         date: selectedDate,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
+        // Add timestamps for createdAt and updatedAt
+        createdAt: new Date().toLocaleString('en-CA'),
+        updatedAt: new Date().toLocaleString('en-CA')
       };
       
       await setDoc(menuRef, menuData);
@@ -420,7 +424,7 @@ const MenuManager = () => {
               <div key={menu.date} className="menu-card-small">
                 <div className="menu-card-header">
                   <h4>{formatDate(menu.date)}</h4>
-                  <span className="menu-date-code">{menu.date}</span>
+                  {/* <span className="menu-date-code">{menu.date}</span> */}
                 </div>
                 <div className="menu-summary">
                   <span>🌅 {menu.breakfast?.length || 0}</span>
