@@ -112,18 +112,26 @@ class NotificationService {
    * Show meal selection confirmation notification
    */
   showConfirmationNotification(selectedMeals) {
-    const mealCount = selectedMeals.filter(Boolean).length;
-    const mealNames = [];
-    
-    if (selectedMeals.breakfast) mealNames.push('Breakfast');
-    if (selectedMeals.lunch) mealNames.push('Lunch');
-    if (selectedMeals.snacks) mealNames.push('Snacks');
+  const mealTypes = ['breakfast', 'lunch', 'snacks', 'dinner'];
+  
+   // Count individual ITEMS selected (not just meal categories)
+  const itemCount = mealTypes.reduce((sum, type) => {
+    const items = Array.isArray(selectedMeals[type]) ? selectedMeals[type] : [];
+    return sum + items.length;
+    }, 0);
+
+    // Build a readable summary like "Breakfast: Idli, Tea | Lunch: Rice"
+    const mealSummaries = mealTypes
+    .filter(type => Array.isArray(selectedMeals[type]) && selectedMeals[type].length > 0)
+    .map(type => {
+      const label = type.charAt(0).toUpperCase() + type.slice(1);
+      return `${label}: ${selectedMeals[type].join(', ')}`;
+    });
 
     const title = '✅ Meal Selection Confirmed';
-    const body = mealCount > 0
-      ? `You've selected ${mealCount} meal(s): ${mealNames.join(', ')}. Enjoy your meal tomorrow!`
-      : 'Your meal preferences have been saved. You have not selected any meals.';
-
+    const body = itemCount > 0
+    ? `You've selected ${itemCount} item(s) — ${mealSummaries.join(' | ')}. Enjoy your meal tomorrow!`
+    : 'Your meal preferences have been saved. You have not selected any items.';
     return this.showNotification(title, {
       body,
       tag: 'meal-confirmation',
