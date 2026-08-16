@@ -185,9 +185,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ),
                     ),
 
-                  // Language Selector Section
-                  const LanguageSelector(),
-                  const SizedBox(height: 24),
+
 
                   // Deadline Settings Section Header
                   const Text(
