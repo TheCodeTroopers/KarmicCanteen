@@ -18,7 +18,11 @@ const ReportsDashboard = () => {
     // Set tomorrow as default (since employees select for tomorrow)
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
-    setSelectedDate(tomorrow.toISOString().split('T')[0]);
+    // FIXED (Local YYYY-MM-DD format):
+    const year = tomorrow.getFullYear();
+    const month = String(tomorrow.getMonth() + 1).padStart(2, '0');
+    const day = String(tomorrow.getDate()).padStart(2, '0');
+    setSelectedDate(`${year}-${month}-${day}`);
     fetchAllReports();
   }, []);
 
@@ -130,7 +134,8 @@ const ReportsDashboard = () => {
       const reportData = {
         ...counts,
         totalParticipants: participants.length,
-        generatedAt: new Date().toISOString(),
+        // Add timestamp for when the report was generated
+        generatedAt: new Date().toLocaleString('en-CA'),
         participants,
         hasData: hasSelections
       };
@@ -438,7 +443,7 @@ const goToPreviousPage = () => {
               >
                 <div className="report-date">
                   <strong>{formatDate(r.date)}</strong>
-                  <span className="date-code">{r.date}</span>
+                  {/* <span className="date-code">{r.date}</span> */}
                 </div>
                 <div className="report-summary">
                   <span>🌅 {r.breakfast}</span>
