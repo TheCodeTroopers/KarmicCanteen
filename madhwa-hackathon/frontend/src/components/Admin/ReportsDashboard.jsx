@@ -105,18 +105,22 @@ const ReportsDashboard = () => {
         if (!snapshot.empty) {
           hasSelections = true;
           snapshot.forEach(doc => {
-            const data = doc.data();
-            if (data.breakfast) counts.breakfast++;
-            if (data.lunch) counts.lunch++;
-            if (data.snacks) counts.snacks++;
-            
-            participants.push({
-              email: data.email || 'Unknown',
-              breakfast: data.breakfast || false,
-              lunch: data.lunch || false,
-              snacks: data.snacks || false
-            });
-          });
+             const data = doc.data();
+             const breakfastItems = Array.isArray(data.breakfast) ? data.breakfast : [];
+             const lunchItems = Array.isArray(data.lunch) ? data.lunch : [];
+             const snacksItems = Array.isArray(data.snacks) ? data.snacks : [];
+
+             if (breakfastItems.length > 0) counts.breakfast++;
+             if (lunchItems.length > 0) counts.lunch++;
+             if (snacksItems.length > 0) counts.snacks++;
+
+             participants.push({
+               email: data.email || 'Unknown',
+               breakfast: breakfastItems,
+               lunch: lunchItems,
+               snacks: snacksItems
+                        });
+           });
         }
       } catch (error) {
         console.log('Error fetching meal selections:', error);
@@ -158,19 +162,19 @@ const ReportsDashboard = () => {
     let snacksCount = 0;
 
     // Add participant rows and count selections
-    report.participants?.forEach(p => {
-      csvRows.push([
-        p.email,
-        p.breakfast ? 'Yes' : 'No',
-        p.lunch ? 'Yes' : 'No',
-        p.snacks ? 'Yes' : 'No'
-      ]);
+ report.participants?.forEach(p => {
+  csvRows.push([
+    p.email,
+    p.breakfast.length > 0 ? p.breakfast.join('; ') : 'None',
+    p.lunch.length > 0 ? p.lunch.join('; ') : 'None',
+    p.snacks.length > 0 ? p.snacks.join('; ') : 'None'
+  ]);
 
-      // Count selections
-      if (p.breakfast) breakfastCount++;
-      if (p.lunch) lunchCount++;
-      if (p.snacks) snacksCount++;
-    });
+  // Count selections
+  if (p.breakfast.length > 0) breakfastCount++;
+  if (p.lunch.length > 0) lunchCount++;
+  if (p.snacks.length > 0) snacksCount++;
+});
 
     // Add empty row for separation
     csvRows.push([]);
@@ -370,9 +374,9 @@ const goToPreviousPage = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {paginatedParticipants.map((p, index) => (
+                    {report.participants.map((p, index) => (
                       <tr key={index}>
-                       <td>{(currentPage - 1) * PARTICIPANTS_PER_PAGE + index + 1}</td>
+                        <td>{index + 1}</td>
                         <td>{p.email}</td>
                         <td>
                           <span className={`badge ${p.breakfast ? 'yes' : 'no'}`}>
