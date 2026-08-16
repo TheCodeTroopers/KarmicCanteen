@@ -63,9 +63,6 @@ class EmployeeSettingsScreen extends StatelessWidget {
             ),
             const SizedBox(height: 24),
 
-            // Language Selector
-            const LanguageSelector(),
-            const SizedBox(height: 24),
 
             // Logout Button
             ElevatedButton.icon(
