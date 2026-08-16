@@ -30,14 +30,14 @@
   --shadow-glow: 0 0 20px rgba(26, 109, 204, 0.12);
   --shadow-glow-lg: 0 0 40px rgba(26, 109, 204, 0.18);
   
-  /* Spacing (8px baseline grid) */
-  --space-xs: 4px;
-  --space-sm: 8px;
-  --space-md: 16px;
-  --space-lg: 24px;
-  --space-xl: 32px;
-  --space-2xl: 48px;
-  --space-3xl: 64px;
+  /* Spacing (compact) */
+  --space-xs: 2px;
+  --space-sm: 6px;
+  --space-md: 12px;
+  --space-lg: 16px;
+  --space-xl: 20px;
+  --space-2xl: 28px;
+  --space-3xl: 40px;
   
   /* Border Radii - Rounder, modern */
   --radius-sm: 8px;

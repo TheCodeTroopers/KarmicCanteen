@@ -14,6 +14,7 @@ import WorkingModeSelector from './WorkingModeSelector';
 import WorkingFromHome from './WorkingFromHome';
 import WeeklyMealSelector from './WeeklyMealSelector';
 import './EmployeeDashboard.css';
+import { getLocalDateString } from '../../utils/dateUtils';
 
 const MEAL_TYPES = [
   { key: 'breakfast', label: 'Breakfast', icon: Coffee },
@@ -79,7 +80,9 @@ const EmployeeDashboard = () => {
   const getTomorrowDate = () => {
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
-    return getLocalDateString(tomorrow);
+    const dateStr = getLocalDateString(tomorrow);
+    console.log('Tomorrow date:', dateStr); // Debug log
+    return dateStr;
   };
 
   const formatDate = (dateStr) => {
@@ -142,8 +145,9 @@ const EmployeeDashboard = () => {
   const fetchTomorrowMenu = async () => {
     try {
       const tomorrow = getTomorrowDate();
-      const today = getLocalDateString();
-
+     const today = getLocalDateString();
+      
+      // First try to get tomorrow's menu
       const menuRef = doc(db, 'menus', tomorrow);
       const menuSnap = await getDoc(menuRef);
 

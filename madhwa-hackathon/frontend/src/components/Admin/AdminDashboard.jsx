@@ -6,7 +6,6 @@ import AnalyticsDashboard from './AnalyticsDashboard';
 import MenuManager from './MenuManager';
 import ReportsDashboard from './ReportsDashboard';
 import AdminSettings from './AdminSettings';
-import PredictionsDashboard from './PredictionsDashboard';
 import FestivalAnnouncements from './FestivalAnnouncements';
 import './AdminDashboard.css';
 import StaplesManager from './StaplesManager';
@@ -47,12 +46,12 @@ const AdminDashboard = () => {
         >
           <TrendingUp size={16} /> Reports
         </NavLink>
-        <NavLink 
+        {/* <NavLink 
           to="/admin/predictions" 
           className={({ isActive }) => isActive ? 'tab active' : 'tab'}
         >
           <Cpu size={16} /> AI Predictions
-        </NavLink>
+        </NavLink> */}
         <NavLink 
           to="/admin/announcements" 
           className={({ isActive }) => isActive ? 'tab active' : 'tab'}
@@ -73,7 +72,7 @@ const AdminDashboard = () => {
           <Route path="analytics" element={<AnalyticsDashboard />} />
           <Route path="menu" element={<MenuManager />} />
           <Route path="reports" element={<ReportsDashboard />} />
-          <Route path="predictions" element={<PredictionsDashboard />} />
+          {/* <Route path="predictions" element={<PredictionsDashboard />} /> */}
           <Route path="announcements" element={<FestivalAnnouncements />} />
           <Route path="settings" element={<AdminSettings />} />
           <Route path="staples" element={<StaplesManager />} />
