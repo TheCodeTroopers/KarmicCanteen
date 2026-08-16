@@ -76,61 +76,7 @@ const LanguageSwitcher = () => {
     }
   };
 
-  return (
-    <div className="language-switcher" ref={dropdownRef}>
-      <button
-        className="language-switcher-button"
-        onClick={() => setIsOpen(!isOpen)}
-        aria-label={t('language.select')}
-        aria-expanded={isOpen}
-        aria-haspopup="true"
-        disabled={isChanging}
-      >
-        <span className="language-flag" role="img" aria-label={currentLang.name}>
-          {currentLang.flag}
-        </span>
-        <span className="language-name">{currentLang.nativeName}</span>
-        <ChevronDown size={14} className={`language-arrow ${isOpen ? 'open' : ''}`} />
-      </button>
-
-      {isOpen && (
-        <div className="language-dropdown" role="menu">
-          {SUPPORTED_LANGUAGES.map((language) => {
-            const isActive = language.code === i18n.language;
-            
-            return (
-              <button
-                key={language.code}
-                className={`language-option ${isActive ? 'active' : ''}`}
-                onClick={() => handleLanguageChange(language.code)}
-                onKeyDown={(e) => handleKeyDown(e, language.code)}
-                role="menuitem"
-                aria-current={isActive ? 'true' : 'false'}
-                disabled={isChanging}
-              >
-                <span className="language-flag" role="img" aria-label={language.name}>
-                  {language.flag}
-                </span>
-                <div className="language-info">
-                  <span className="language-native-name">{language.nativeName}</span>
-                  <span className="language-english-name">{language.name}</span>
-                </div>
-                {isActive && (
-                  <Check size={14} className="language-check" aria-label="Selected" />
-                )}
-              </button>
-            );
-          })}
-        </div>
-      )}
-
-      {isChanging && (
-        <div className="language-loading" aria-live="polite">
-          <span className="loading-spinner"></span>
-        </div>
-      )}
-    </div>
-  );
+  return null;
 };
 
 export default LanguageSwitcher;

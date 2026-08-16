@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import './WeeklyMealSelector.css';
 
+import { getLocalDateString } from '../../utils/dateUtils';
 const MEAL_TYPES = [
   { key: 'breakfast', label: 'Breakfast', icon: Coffee },
   { key: 'lunch', label: 'Lunch', icon: Soup },
@@ -43,37 +44,47 @@ const WeeklyMealSelector = () => {
   }, []);
 
   // Build the next 7 days starting from TOMORROW, skipping Sunday.
-  const initializeWeek = async () => {
-    const days = [];
-    let cursor = new Date();
-    cursor.setDate(cursor.getDate() + 1); // start from tomorrow
+const initializeWeek = async () => {
+  const days = [];
 
-    while (days.length < 7) {
-      if (cursor.getDay() !== 0) { // skip Sunday
-        const dateStr = getLocalDateString(cursor);
-        days.push({
-          date: dateStr,
-          dayName: cursor.toLocaleDateString('en-US', { weekday: 'short' }),
-          dayNumber: cursor.getDate(),
-          month: cursor.toLocaleDateString('en-US', { month: 'short' }),
-        });
-      }
-      cursor = new Date(cursor);
-      cursor.setDate(cursor.getDate() + 1);
+  let cursor = new Date();
+  cursor.setDate(cursor.getDate() + 1);
+
+  while (days.length < 7) {
+    if (cursor.getDay() !== 0) {
+      const dateStr = getLocalDateString(cursor);
+
+      days.push({
+        date: dateStr,
+        dayName: cursor.toLocaleDateString('en-US', { weekday: 'short' }),
+        dayNumber: cursor.getDate(),
+        month: cursor.toLocaleDateString('en-US', { month: 'short' }),
+        isPast: cursor < new Date()
+      });
     }
 
-    setWeekDays(days);
+    cursor = new Date(cursor);
+    cursor.setDate(cursor.getDate() + 1);
+  }
 
-    const initialSelections = {};
-    days.forEach(day => {
-      initialSelections[day.date] = { breakfast: [], lunch: [], snacks: [], dinner: [] };
-    });
-    setWeeklySelections(initialSelections);
+  setWeekDays(days);
 
-    await loadStaples();
-    await loadWeeklyData(days);
-    setLoading(false);
-  };
+  const initialSelections = {};
+  days.forEach(day => {
+    initialSelections[day.date] = {
+      breakfast: [],
+      lunch: [],
+      snacks: [],
+      dinner: []
+    };
+  });
+
+  setWeeklySelections(initialSelections);
+
+  await loadStaples();
+  await loadWeeklyData(days);
+  setLoading(false);
+};
 
   const loadStaples = async () => {
     try {
