@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { doc, setDoc, getDoc, collection, getDocs, deleteDoc } from 'firebase/firestore';
 import { db } from '../../firebase/config';
+import { getLocalDateString } from '../../utils/dateUtils';
 import './MenuManager.css';
 
 const MenuManager = () => {
@@ -28,7 +29,7 @@ const MenuManager = () => {
     // Set tomorrow as default date
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
-    setSelectedDate(tomorrow.toISOString().split('T')[0]);
+   setSelectedDate(getLocalDateString(tomorrow));
     
     fetchExistingMenus();
   }, []);
@@ -146,8 +147,9 @@ const MenuManager = () => {
       const menuData = {
         ...menuItems,
         date: selectedDate,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
+        // Add timestamps for createdAt and updatedAt
+        createdAt: new Date().toLocaleString('en-CA'),
+        updatedAt: new Date().toLocaleString('en-CA')
       };
       
       await setDoc(menuRef, menuData);
@@ -230,7 +232,7 @@ const goToPreviousPage = () => {
               type="date"
               value={selectedDate}
               onChange={(e) => setSelectedDate(e.target.value)}
-              min={new Date().toISOString().split('T')[0]}
+              min={getLocalDateString()}
             />
             <span className="selected-date-display">
               {selectedDate && formatDate(selectedDate)}
@@ -437,7 +439,7 @@ const goToPreviousPage = () => {
               <div key={menu.date} className="menu-card-small">
                 <div className="menu-card-header">
                   <h4>{formatDate(menu.date)}</h4>
-                  <span className="menu-date-code">{menu.date}</span>
+                  {/* <span className="menu-date-code">{menu.date}</span> */}
                 </div>
                 <div className="menu-summary">
                   <span>🌅 {menu.breakfast?.length || 0}</span>

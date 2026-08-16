@@ -413,6 +413,7 @@ Widget _buildWeeklyModeButton() {
     });
   }
 
+ 
   void _showLanguageSelector() {
     showModalBottomSheet(
       context: context,
@@ -443,10 +444,6 @@ Widget _buildWeeklyModeButton() {
             ),
             const SizedBox(height: 16),
             _buildLanguageTile('English', '🇬🇧', const Locale('en')),
-            const Divider(),
-            _buildLanguageTile('[translate:हिंदी]', '🇮🇳', const Locale('hi')),
-            const Divider(),
-            _buildLanguageTile('[translate:ಕನ್ನಡ]', '🇮🇳', const Locale('kn')),
             const SizedBox(height: 16),
           ],
         ),
@@ -454,40 +451,6 @@ Widget _buildWeeklyModeButton() {
     );
   }
 
-  Widget _buildLanguageTile(String language, String flag, Locale locale) {
-    final isSelected = context.locale == locale;
-
-    return ListTile(
-      leading: Text(flag, style: const TextStyle(fontSize: 32)),
-      title: Text(
-        language,
-        style: TextStyle(
-          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-        ),
-      ),
-      trailing: isSelected
-          ? const Icon(Icons.check_circle, color: Color(0xFF21808D))
-          : null,
-      selected: isSelected,
-      selectedTileColor: Colors.teal.shade50,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(8),
-      ),
-      onTap: () async {
-        await context.setLocale(locale);
-        if (mounted) {
-          Navigator.pop(context);
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Language changed to $language'),
-              duration: const Duration(seconds: 2),
-            ),
-          );
-          setState(() {});
-        }
-      },
-    );
-  }
 
   String _formattedDate() {
     // Always show tomorrow's date
@@ -542,7 +505,6 @@ IconButton(
   },
   tooltip: 'Events & Celebrations',
 ),
-
           IconButton(
             icon: const Icon(Icons.language),
             onPressed: _showLanguageSelector,
