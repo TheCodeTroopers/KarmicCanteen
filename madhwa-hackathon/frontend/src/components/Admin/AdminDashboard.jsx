@@ -1,14 +1,14 @@
 // src/components/Admin/AdminDashboard.jsx
 import React from 'react';
 import { Routes, Route, NavLink, Navigate } from 'react-router-dom';
-import { Settings, BarChart3, UtensilsCrossed, TrendingUp, Cpu, Megaphone, Settings2 } from 'lucide-react';
+import { Settings, BarChart3, UtensilsCrossed, TrendingUp, Cpu, Megaphone, Settings2, Coffee } from 'lucide-react';
 import AnalyticsDashboard from './AnalyticsDashboard';
 import MenuManager from './MenuManager';
 import ReportsDashboard from './ReportsDashboard';
 import AdminSettings from './AdminSettings';
-import PredictionsDashboard from './PredictionsDashboard';
 import FestivalAnnouncements from './FestivalAnnouncements';
 import './AdminDashboard.css';
+import StaplesManager from './StaplesManager';
 
 const AdminDashboard = () => {
   return (
@@ -35,17 +35,23 @@ const AdminDashboard = () => {
           <UtensilsCrossed size={16} /> Menu
         </NavLink>
         <NavLink 
+        to="/admin/staples" 
+        className={({ isActive }) => isActive ? 'tab active' : 'tab'}
+        >
+          <Coffee size={16} /> Daily Staples
+          </NavLink>
+        <NavLink 
           to="/admin/reports" 
           className={({ isActive }) => isActive ? 'tab active' : 'tab'}
         >
           <TrendingUp size={16} /> Reports
         </NavLink>
-        <NavLink 
+        {/* <NavLink 
           to="/admin/predictions" 
           className={({ isActive }) => isActive ? 'tab active' : 'tab'}
         >
           <Cpu size={16} /> AI Predictions
-        </NavLink>
+        </NavLink> */}
         <NavLink 
           to="/admin/announcements" 
           className={({ isActive }) => isActive ? 'tab active' : 'tab'}
@@ -66,9 +72,10 @@ const AdminDashboard = () => {
           <Route path="analytics" element={<AnalyticsDashboard />} />
           <Route path="menu" element={<MenuManager />} />
           <Route path="reports" element={<ReportsDashboard />} />
-          <Route path="predictions" element={<PredictionsDashboard />} />
+          {/* <Route path="predictions" element={<PredictionsDashboard />} /> */}
           <Route path="announcements" element={<FestivalAnnouncements />} />
           <Route path="settings" element={<AdminSettings />} />
+          <Route path="staples" element={<StaplesManager />} />
         </Routes>
       </div>
     </div>
