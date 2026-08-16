@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { doc, setDoc, getDoc, collection, getDocs, deleteDoc } from 'firebase/firestore';
 import { db } from '../../firebase/config';
+import { getLocalDateString } from '../../utils/dateUtils';
 import './MenuManager.css';
 
 const MenuManager = () => {
@@ -26,11 +27,8 @@ const MenuManager = () => {
     // Set tomorrow as default date
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
-    //  FIXED (Local YYYY-MM-DD format):
-    const year = tomorrow.getFullYear();
-    const month = String(tomorrow.getMonth() + 1).padStart(2, '0');
-    const day = String(tomorrow.getDate()).padStart(2, '0');
-    setSelectedDate(`${year}-${month}-${day}`);
+   setSelectedDate(getLocalDateString(tomorrow));
+    
     fetchExistingMenus();
   }, []);
 
@@ -217,7 +215,7 @@ const MenuManager = () => {
               type="date"
               value={selectedDate}
               onChange={(e) => setSelectedDate(e.target.value)}
-              min={new Date().toISOString().split('T')[0]}
+              min={getLocalDateString()}
             />
             <span className="selected-date-display">
               {selectedDate && formatDate(selectedDate)}

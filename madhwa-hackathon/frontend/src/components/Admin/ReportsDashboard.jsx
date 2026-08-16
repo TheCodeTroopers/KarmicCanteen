@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { collection, getDocs, doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '../../firebase/config';
+import { getLocalDateString } from '../../utils/dateUtils';
 import './ReportsDashboard.css';
 
 const ReportsDashboard = () => {
@@ -18,11 +19,7 @@ const ReportsDashboard = () => {
     // Set tomorrow as default (since employees select for tomorrow)
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
-    // FIXED (Local YYYY-MM-DD format):
-    const year = tomorrow.getFullYear();
-    const month = String(tomorrow.getMonth() + 1).padStart(2, '0');
-    const day = String(tomorrow.getDate()).padStart(2, '0');
-    setSelectedDate(`${year}-${month}-${day}`);
+   setSelectedDate(getLocalDateString(tomorrow));
     fetchAllReports();
   }, []);
 
