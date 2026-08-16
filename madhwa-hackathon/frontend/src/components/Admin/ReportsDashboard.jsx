@@ -12,7 +12,7 @@ const ReportsDashboard = () => {
   const [message, setMessage] = useState({ type: '', text: '' });
   const [allReports, setAllReports] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
-  const PARTICIPANTS_PER_PAGE = 10;
+  const PARTICIPANTS_PER_PAGE = 1;
   const [menu, setMenu] = useState(null);
 
   useEffect(() => {
@@ -367,37 +367,37 @@ const goToPreviousPage = () => {
               <div className="table-wrapper">
                 <table>
                   <thead>
-  <tr>
-    <th>#</th>
-    <th>Email</th>
-    <th>🌅 Breakfast</th>
-    <th>🌞 Lunch</th>
-    <th>🌙 Snacks</th>
-  </tr>
-</thead>
-<tbody>
-  {report.participants.map((p, index) => (
-    <tr key={index}>
-      <td>{index + 1}</td>
-      <td>{p.email}</td>
-      <td>
-        {p.breakfast.length > 0 
-          ? <span className="items-cell">{p.breakfast.join(', ')}</span> 
-          : <span className="badge no">—</span>}
-      </td>
-      <td>
-        {p.lunch.length > 0 
-          ? <span className="items-cell">{p.lunch.join(', ')}</span> 
-          : <span className="badge no">—</span>}
-      </td>
-      <td>
-        {p.snacks.length > 0 
-          ? <span className="items-cell">{p.snacks.join(', ')}</span> 
-          : <span className="badge no">—</span>}
-      </td>
-    </tr>
-  ))}
-</tbody>
+                    <tr>
+                      <th>#</th>
+                      <th>Email</th>
+                      <th>🌅 Breakfast</th>
+                      <th>🌞 Lunch</th>
+                      <th>🌙 Snacks</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {report.participants.map((p, index) => (
+                      <tr key={index}>
+                        <td>{index + 1}</td>
+                        <td>{p.email}</td>
+                        <td>
+                          <span className={`badge ${p.breakfast ? 'yes' : 'no'}`}>
+                            {p.breakfast ? '✓' : '×'}
+                          </span>
+                        </td>
+                        <td>
+                          <span className={`badge ${p.lunch ? 'yes' : 'no'}`}>
+                            {p.lunch ? '✓' : '×'}
+                          </span>
+                        </td>
+                        <td>
+                          <span className={`badge ${p.snacks ? 'yes' : 'no'}`}>
+                            {p.snacks ? '✓' : '×'}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
                 </table>
               </div>
               {totalParticipantPages > 1 && (

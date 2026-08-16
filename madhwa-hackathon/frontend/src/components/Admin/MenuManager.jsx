@@ -22,6 +22,8 @@ const MenuManager = () => {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
   const [existingMenus, setExistingMenus] = useState([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const MENUS_PER_PAGE = 10;
 
   useEffect(() => {
     // Set tomorrow as default date
@@ -195,6 +197,21 @@ const MenuManager = () => {
   const getTotalItems = () => {
     return menuItems.breakfast.length + menuItems.lunch.length + menuItems.snacks.length + menuItems.dinner.length;
   };
+  // Pagination calculations
+const totalPages = Math.ceil(existingMenus.length / MENUS_PER_PAGE);
+const paginatedMenus = existingMenus.slice(
+  (currentPage - 1) * MENUS_PER_PAGE,
+  currentPage * MENUS_PER_PAGE
+);
+
+const goToNextPage = () => {
+  if (currentPage < totalPages) setCurrentPage(currentPage + 1);
+};
+
+const goToPreviousPage = () => {
+  if (currentPage > 1) setCurrentPage(currentPage - 1);
+};
+
 
   return (
     <div className="menu-manager">
@@ -418,7 +435,7 @@ const MenuManager = () => {
           <p className="empty-state">No menus created yet</p>
         ) : (
           <div className="menus-list">
-            {existingMenus.map(menu => (
+            {paginatedMenus.map(menu => (
               <div key={menu.date} className="menu-card-small">
                 <div className="menu-card-header">
                   <h4>{formatDate(menu.date)}</h4>
@@ -446,6 +463,28 @@ const MenuManager = () => {
                 </div>
               </div>
             ))}
+          </div>
+        )}
+        {/* Pagination controls */}
+        {totalPages > 1 && (
+          <div className="pagination-controls">
+            <button
+              className="btn btn-secondary btn-sm"
+              onClick={goToPreviousPage}
+              disabled={currentPage === 1}
+            >
+              ← Previous
+            </button>
+            <span className="pagination-info">
+              Page {currentPage} of {totalPages}
+            </span>
+            <button
+              className="btn btn-secondary btn-sm"
+              onClick={goToNextPage}
+              disabled={currentPage === totalPages}
+            >
+              Next →
+            </button>
           </div>
         )}
       </div>
