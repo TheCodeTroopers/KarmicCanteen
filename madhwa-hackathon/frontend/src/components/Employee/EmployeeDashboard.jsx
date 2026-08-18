@@ -14,7 +14,7 @@ import WorkingModeSelector from './WorkingModeSelector';
 import WorkingFromHome from './WorkingFromHome';
 import WeeklyMealSelector from './WeeklyMealSelector';
 import './EmployeeDashboard.css';
-import { getLocalDateString } from '../../utils/dateUtils';
+
 
 const MEAL_TYPES = [
   { key: 'breakfast', label: 'Breakfast', icon: Coffee },
