@@ -10,7 +10,6 @@ import {
 } from 'lucide-react';
 import './WeeklyMealSelector.css';
 
-import { getLocalDateString } from '../../utils/dateUtils';
 const MEAL_TYPES = [
   { key: 'breakfast', label: 'Breakfast', icon: Coffee },
   { key: 'lunch', label: 'Lunch', icon: Soup },

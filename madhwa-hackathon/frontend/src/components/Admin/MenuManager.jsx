@@ -63,10 +63,10 @@ const MenuManager = () => {
       if (menuSnap.exists()) {
         const data = menuSnap.data();
         setMenuItems({
-          breakfast: data.breakfast || [],
-          lunch: data.lunch || [],
-          snacks: data.snacks || [],
-          dinner: data.dinner || []
+          breakfast: (data.breakfast || []).map(normalizeMenuItem),
+          lunch: (data.lunch || []).map(normalizeMenuItem),
+          snacks: (data.snacks || []).map(normalizeMenuItem),
+          dinner: (data.dinner || []).map(normalizeMenuItem)
         });
         showMessage('info', `Loaded existing menu for ${formatDate(date)}`);
       } else {
@@ -97,21 +97,52 @@ const MenuManager = () => {
     });
   };
 
+  const normalizeMenuItem = (item) => {
+    // Existing menus may contain strings
+    if (typeof item === 'string') {
+      return {
+        name: item,
+        available: true,
+        quantity: 0
+      };
+    }
+
+    // New menu format
+    return {
+      name: item.name || '',
+      available: item.available !== false,
+      quantity: Number(item.quantity) || 0
+    };
+  };
+
   const handleAddItem = (mealType) => {
     const item = currentItem[mealType].trim();
+
     if (!item) {
       showMessage('error', 'Please enter an item name');
       return;
     }
 
-    if (menuItems[mealType].includes(item)) {
+    const exists = menuItems[mealType].some(
+      menuItem =>
+        menuItem.name.toLowerCase() === item.toLowerCase()
+    );
+
+    if (exists) {
       showMessage('error', 'This item already exists in the menu');
       return;
     }
 
     setMenuItems(prev => ({
       ...prev,
-      [mealType]: [...prev[mealType], item]
+      [mealType]: [
+        ...prev[mealType],
+        {
+          name: item,
+          available: true,
+          quantity: 0
+        }
+      ]
     }));
 
     setCurrentItem(prev => ({
@@ -127,13 +158,47 @@ const MenuManager = () => {
     }));
   };
 
+  const handleAvailabilityChange = (mealType, index) => {
+    setMenuItems(prev => ({
+      ...prev,
+      [mealType]: prev[mealType].map((item, i) =>
+        i === index
+          ? {
+              ...item,
+              available: !item.available
+            }
+          : item
+      )
+    }));
+  };
+
+  const handleQuantityChange = (mealType, index, value) => {
+    const quantity = Math.max(0, parseInt(value, 10) || 0);
+
+    setMenuItems(prev => ({
+      ...prev,
+      [mealType]: prev[mealType].map((item, i) =>
+        i === index
+          ? {
+              ...item,
+              quantity
+            }
+          : item
+      )
+    }));
+  };
+
   const handleSaveMenu = async () => {
     if (!selectedDate) {
       showMessage('error', 'Please select a date');
       return;
     }
 
-    const totalItems = menuItems.breakfast.length + menuItems.lunch.length + menuItems.snacks.length;
+    const totalItems =
+      menuItems.breakfast.length +
+      menuItems.lunch.length +
+      menuItems.snacks.length +
+      menuItems.dinner.length;
     if (totalItems === 0) {
       showMessage('error', 'Please add at least one menu item');
       return;
@@ -276,14 +341,57 @@ const goToPreviousPage = () => {
                 <p className="empty-list">No breakfast items added yet</p>
               ) : (
                 menuItems.breakfast.map((item, index) => (
-                  <div key={index} className="item-tag">
-                    <span>{item}</span>
-                    <button 
-                      className="remove-btn"
-                      onClick={() => handleRemoveItem('breakfast', index)}
-                    >
-                      ×
-                    </button>
+                  <div key={index} className="item-tag menu-item-row">
+
+                    <span className="menu-item-name">
+                      {item.name}
+                    </span>
+
+                    <div className="menu-item-controls">
+
+                      <label className="availability-toggle">
+                        <input
+                          type="checkbox"
+                          checked={item.available}
+                          onChange={() =>
+                            handleAvailabilityChange('breakfast', index)
+                          }
+                        />
+                        <span className="toggle-slider"></span>
+                      </label>
+
+                      <span className="availability-text">
+                        {item.available ? 'Available' : 'Unavailable'}
+                      </span>
+
+                      <label className="quantity-label">
+                        Qty:
+                      </label>
+
+                      <input
+                        type="number"
+                        min="0"
+                        value={item.quantity}
+                        onChange={(e) =>
+                          handleQuantityChange(
+                            'breakfast',
+                            index,
+                            e.target.value
+                          )
+                        }
+                        className="quantity-input"
+                      />
+
+                      <button
+                        className="remove-btn"
+                        onClick={() =>
+                          handleRemoveItem('breakfast', index)
+                        }
+                      >
+                        ×
+                      </button>
+
+                    </div>
                   </div>
                 ))
               )}
@@ -318,14 +426,57 @@ const goToPreviousPage = () => {
                 <p className="empty-list">No lunch items added yet</p>
               ) : (
                 menuItems.lunch.map((item, index) => (
-                  <div key={index} className="item-tag">
-                    <span>{item}</span>
-                    <button 
-                      className="remove-btn"
-                      onClick={() => handleRemoveItem('lunch', index)}
-                    >
-                      ×
-                    </button>
+                  <div key={index} className="item-tag menu-item-row">
+
+                    <span className="menu-item-name">
+                      {item.name}
+                    </span>
+
+                    <div className="menu-item-controls">
+
+                      <label className="availability-toggle">
+                        <input
+                          type="checkbox"
+                          checked={item.available}
+                          onChange={() =>
+                            handleAvailabilityChange('lunch', index)
+                          }
+                        />
+                        <span className="toggle-slider"></span>
+                      </label>
+
+                      <span className="availability-text">
+                        {item.available ? 'Available' : 'Unavailable'}
+                      </span>
+
+                      <label className="quantity-label">
+                        Qty:
+                      </label>
+
+                      <input
+                        type="number"
+                        min="0"
+                        value={item.quantity}
+                        onChange={(e) =>
+                          handleQuantityChange(
+                            'lunch',
+                            index,
+                            e.target.value
+                          )
+                        }
+                        className="quantity-input"
+                      />
+
+                      <button
+                        className="remove-btn"
+                        onClick={() =>
+                          handleRemoveItem('lunch', index)
+                        }
+                      >
+                        ×
+                      </button>
+
+                    </div>
                   </div>
                 ))
               )}
@@ -360,14 +511,57 @@ const goToPreviousPage = () => {
                 <p className="empty-list">No snacks items added yet</p>
               ) : (
                 menuItems.snacks.map((item, index) => (
-                  <div key={index} className="item-tag">
-                    <span>{item}</span>
-                    <button 
-                      className="remove-btn"
-                      onClick={() => handleRemoveItem('snacks', index)}
-                    >
-                      ×
-                    </button>
+                  <div key={index} className="item-tag menu-item-row">
+
+                    <span className="menu-item-name">
+                      {item.name}
+                    </span>
+
+                    <div className="menu-item-controls">
+
+                      <label className="availability-toggle">
+                        <input
+                          type="checkbox"
+                          checked={item.available}
+                          onChange={() =>
+                            handleAvailabilityChange('snacks', index)
+                          }
+                        />
+                        <span className="toggle-slider"></span>
+                      </label>
+
+                      <span className="availability-text">
+                        {item.available ? 'Available' : 'Unavailable'}
+                      </span>
+
+                      <label className="quantity-label">
+                        Qty:
+                      </label>
+
+                      <input
+                        type="number"
+                        min="0"
+                        value={item.quantity}
+                        onChange={(e) =>
+                          handleQuantityChange(
+                            'snacks',
+                            index,
+                            e.target.value
+                          )
+                        }
+                        className="quantity-input"
+                      />
+
+                      <button
+                        className="remove-btn"
+                        onClick={() =>
+                          handleRemoveItem('snacks', index)
+                        }
+                      >
+                        ×
+                      </button>
+
+                    </div>
                   </div>
                 ))
               )}
@@ -402,14 +596,57 @@ const goToPreviousPage = () => {
                 <p className="empty-list">No dinner items added yet</p>
               ) : (
                 menuItems.dinner.map((item, index) => (
-                  <div key={index} className="item-tag">
-                    <span>{item}</span>
-                    <button 
-                      className="remove-btn"
-                      onClick={() => handleRemoveItem('dinner', index)}
-                    >
-                      ×
-                    </button>
+                  <div key={index} className="item-tag menu-item-row">
+
+                    <span className="menu-item-name">
+                      {item.name}
+                    </span>
+
+                    <div className="menu-item-controls">
+
+                      <label className="availability-toggle">
+                        <input
+                          type="checkbox"
+                          checked={item.available}
+                          onChange={() =>
+                            handleAvailabilityChange('dinner', index)
+                          }
+                        />
+                        <span className="toggle-slider"></span>
+                      </label>
+
+                      <span className="availability-text">
+                        {item.available ? 'Available' : 'Unavailable'}
+                      </span>
+
+                      <label className="quantity-label">
+                        Qty:
+                      </label>
+
+                      <input
+                        type="number"
+                        min="0"
+                        value={item.quantity}
+                        onChange={(e) =>
+                          handleQuantityChange(
+                            'dinner',
+                            index,
+                            e.target.value
+                          )
+                        }
+                        className="quantity-input"
+                      />
+
+                      <button
+                        className="remove-btn"
+                        onClick={() =>
+                          handleRemoveItem('dinner', index)
+                        }
+                      >
+                        ×
+                      </button>
+
+                    </div>
                   </div>
                 ))
               )}
