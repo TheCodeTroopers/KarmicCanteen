@@ -47,6 +47,7 @@ const EmployeeDashboard = () => {
   const [showDeadlineWarning, setShowDeadlineWarning] = useState(false);
   const [warningShown, setWarningShown] = useState(false);
   const [viewMode, setViewMode] = useState('daily'); // 'daily' or 'weekly'
+  const [showDefaultMenu, setShowDefaultMenu] = useState(true); // Toggle for default menu items
 
   useEffect(() => {
     fetchDeadlineSettings();
@@ -196,7 +197,8 @@ const EmployeeDashboard = () => {
   // Merge staples + tomorrow's special menu items for a meal, deduplicated.
   const getAvailableItems = (mealType) => {
     const menuItems = menu?.[mealType] || [];
-    const combined = [...staples[mealType], ...menuItems];
+    const staplesItems = showDefaultMenu ? staples[mealType] : [];
+    const combined = [...staplesItems, ...menuItems];
     return [...new Set(combined)];
   };
 
@@ -506,27 +508,49 @@ const EmployeeDashboard = () => {
             <Calendar size={20} style={{ color: 'var(--accent-primary)' }} />
             {viewMode === 'daily' ? t('dashboard.selectMeals') + ' ' + formatDate(getTomorrowDate()) : 'Weekly Meal Selection'}
           </h3>
-          <div className="view-toggle">
-            <button 
-              className={`toggle-btn ${viewMode === 'daily' ? 'active' : ''}`}
-              onClick={() => setViewMode('daily')}
-              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-            >
-              <Calendar size={14} /> Daily
-            </button>
-            <button 
-              className={`toggle-btn ${viewMode === 'weekly' ? 'active' : ''}`}
-              onClick={() => setViewMode('weekly')}
-              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-            >
-              <Calendar size={14} /> Weekly
-            </button>
+          <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+            <div className="default-menu-toggle" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <label htmlFor="showDefaultMenu" style={{ fontSize: '13px', fontWeight: '600', color: 'white', cursor: 'pointer' }}>
+                Show Default Menu
+              </label>
+              <input
+                id="showDefaultMenu"
+                type="checkbox"
+                checked={showDefaultMenu}
+                onChange={(e) => setShowDefaultMenu(e.target.checked)}
+                style={{
+                  width: '18px',
+                  height: '18px',
+                  cursor: 'pointer',
+                  accentColor: 'var(--accent-primary)'
+                }}
+              />
+            </div>
+            <div className="view-toggle">
+              <button 
+                className={`toggle-btn ${viewMode === 'daily' ? 'active' : ''}`}
+                onClick={() => setViewMode('daily')}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+              >
+                <Calendar size={14} /> Daily
+              </button>
+              <button 
+                className={`toggle-btn ${viewMode === 'weekly' ? 'active' : ''}`}
+                onClick={() => setViewMode('weekly')}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+              >
+                <Calendar size={14} /> Weekly
+              </button>
+            </div>
           </div>
         </div>
       </div>
 
       {viewMode === 'weekly' ? (
-        <WeeklyMealSelector />
+        <WeeklyMealSelector 
+          showDefaultMenu={showDefaultMenu}
+          setShowDefaultMenu={setShowDefaultMenu}
+        />
       ) : (
         <>
           {!menu ? (
