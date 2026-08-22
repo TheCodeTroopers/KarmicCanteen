@@ -10,7 +10,6 @@ import {
 } from 'lucide-react';
 import './WeeklyMealSelector.css';
 
-
 const MEAL_TYPES = [
   { key: 'breakfast', label: 'Breakfast', icon: Coffee },
   { key: 'lunch', label: 'Lunch', icon: Soup },
@@ -27,7 +26,7 @@ const mealTimings = {
 
 const EMPTY_DAY_SELECTION = { breakfast: [], lunch: [], snacks: [], dinner: [] };
 
-const WeeklyMealSelector = () => {
+const WeeklyMealSelector = ({ showDefaultMenu, setShowDefaultMenu }) => {
   const { currentUser } = useAuth();
   const [weekDays, setWeekDays] = useState([]);
   const [weeklySelections, setWeeklySelections] = useState({});
@@ -180,7 +179,8 @@ const initializeWeek = async () => {
   // Merge staples + that day's special menu items for a given meal, deduplicated.
   const getAvailableItems = (dateStr, mealType) => {
     const dayMenuItems = weeklyMenus[dateStr]?.[mealType] || [];
-    const combined = [...staples[mealType], ...dayMenuItems];
+    const staplesItems = showDefaultMenu ? staples[mealType] : [];
+    const combined = [...staplesItems, ...dayMenuItems];
     return [...new Set(combined)]; // dedupe in case admin added "Tea" both as staple and special
   };
 
@@ -294,9 +294,11 @@ const initializeWeek = async () => {
       <Calendar size={22} style={{ color: 'var(--accent-primary)' }} />
       Weekly Meal Selection
     </h2>
-    <button className="history-btn" onClick={fetchHistory}>
-      <History size={16} /> History
-    </button>
+    <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+      <button className="history-btn" onClick={fetchHistory}>
+        <History size={16} /> History
+      </button>
+    </div>
   </div>
   <p className="subtitle">Pick exactly what you want for the next 7 days</p>
         <div className="deadline-notice" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
