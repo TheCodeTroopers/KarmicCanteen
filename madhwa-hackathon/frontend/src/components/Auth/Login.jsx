@@ -27,27 +27,34 @@ const Login = () => {
       // User will be automatically redirected after successful login
       
     } catch (err) {
-      console.error('Login error:', err);
+      console.error('Login error code:', err.code);
+      console.error('Login error message:', err.message);
+      console.error('Full login error:', err);
       
       // User-friendly error messages
       switch (err.code) {
         case 'auth/user-not-found':
-          setError(t('auth.noAccount'));
+          setError(t('auth.errors.userNotFound'));
           break;
+
         case 'auth/wrong-password':
-          setError(t('auth.incorrectPassword'));
+          setError(t('auth.errors.wrongPassword'));
           break;
+
         case 'auth/invalid-credential':
-          setError(t('auth.invalidCredentials'));
+          setError(t('auth.errors.invalidCredentials'));
           break;
+
         case 'auth/too-many-requests':
-          setError(t('auth.tooManyAttempts') || 'Too many failed attempts. Please try again later.');
+          setError(t('auth.errors.tooManyAttempts'));
           break;
+
         case 'auth/network-request-failed':
-          setError(t('auth.networkError'));
+          setError(t('auth.errors.networkError'));
           break;
+
         default:
-          setError(t('auth.loginError'));
+          setError(t('auth.errors.loginFailed'));
       }
     } finally {
       setLoading(false);

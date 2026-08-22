@@ -231,3 +231,107 @@
   cursor: not-allowed;
   transform: none;
 }
+
+/* =========================================================
+   DAILY STAPLE ITEM CONTROLS
+   ========================================================= */
+
+.staple-item-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.staple-item-name {
+  flex: 1;
+  min-width: 0;
+  font-weight: 500;
+}
+
+.staple-item-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.staple-availability-text {
+  font-size: 13px;
+  min-width: 78px;
+}
+
+.staple-quantity-label {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.staple-quantity-input {
+  width: 65px;
+  height: 32px;
+  padding: 4px 8px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  text-align: center;
+  font-size: 14px;
+  box-sizing: border-box;
+}
+
+.staple-quantity-input:focus {
+  outline: none;
+  border-color: #21808d;
+}
+
+.staple-quantity-input::placeholder {
+  color: #999;
+}
+
+
+/* =========================================================
+   AVAILABILITY TOGGLE
+   ========================================================= */
+
+.staple-toggle {
+  position: relative;
+  display: inline-block;
+  width: 42px;
+  height: 23px;
+  flex-shrink: 0;
+}
+
+.staple-toggle input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.staple-toggle-slider {
+  position: absolute;
+  cursor: pointer;
+  inset: 0;
+  background-color: #ccc;
+  border-radius: 23px;
+  transition: 0.2s;
+}
+
+.staple-toggle-slider::before {
+  content: "";
+  position: absolute;
+  width: 17px;
+  height: 17px;
+  left: 3px;
+  top: 3px;
+  background-color: white;
+  border-radius: 50%;
+  transition: 0.2s;
+}
+
+.staple-toggle input:checked + .staple-toggle-slider {
+  background-color: #21808d;
+}
+
+.staple-toggle input:checked + .staple-toggle-slider::before {
+  transform: translateX(19px);
+}
