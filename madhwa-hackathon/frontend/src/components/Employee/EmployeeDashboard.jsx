@@ -15,7 +15,6 @@ import WorkingFromHome from './WorkingFromHome';
 import WeeklyMealSelector from './WeeklyMealSelector';
 import './EmployeeDashboard.css';
 
-
 const MEAL_TYPES = [
   { key: 'breakfast', label: 'Breakfast', icon: Coffee },
   { key: 'lunch', label: 'Lunch', icon: Soup },
