@@ -178,10 +178,34 @@ const initializeWeek = async () => {
 
   // Merge staples + that day's special menu items for a given meal, deduplicated.
   const getAvailableItems = (dateStr, mealType) => {
-    const dayMenuItems = weeklyMenus[dateStr]?.[mealType] || [];
-    const staplesItems = showDefaultMenu ? staples[mealType] : [];
+    const rawMenuItems = weeklyMenus[dateStr]?.[mealType] || [];
+    const rawStaplesItems = showDefaultMenu ? (staples[mealType] || []) : [];
+
+    const formatItemName = (item) => {
+      if (typeof item === 'string') return item;
+      if (item && typeof item === 'object') return item.name || '';
+      return String(item || '');
+    };
+
+    const isItemAvailable = (item) => {
+      if (typeof item === 'object' && item !== null) {
+        return item.available !== false;
+      }
+      return true;
+    };
+
+    const dayMenuItems = rawMenuItems
+      .filter(isItemAvailable)
+      .map(formatItemName)
+      .filter(Boolean);
+
+    const staplesItems = rawStaplesItems
+      .filter(isItemAvailable)
+      .map(formatItemName)
+      .filter(Boolean);
+
     const combined = [...staplesItems, ...dayMenuItems];
-    return [...new Set(combined)]; // dedupe in case admin added "Tea" both as staple and special
+    return [...new Set(combined)];
   };
 
   const isEditAllowed = (dateStr) => {

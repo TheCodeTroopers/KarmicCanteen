@@ -196,8 +196,32 @@ const EmployeeDashboard = () => {
 
   // Merge staples + tomorrow's special menu items for a meal, deduplicated.
   const getAvailableItems = (mealType) => {
-    const menuItems = menu?.[mealType] || [];
-    const staplesItems = showDefaultMenu ? staples[mealType] : [];
+    const rawMenuItems = menu?.[mealType] || [];
+    const rawStaplesItems = showDefaultMenu ? (staples[mealType] || []) : [];
+
+    const formatItemName = (item) => {
+      if (typeof item === 'string') return item;
+      if (item && typeof item === 'object') return item.name || '';
+      return String(item || '');
+    };
+
+    const isItemAvailable = (item) => {
+      if (typeof item === 'object' && item !== null) {
+        return item.available !== false;
+      }
+      return true;
+    };
+
+    const menuItems = rawMenuItems
+      .filter(isItemAvailable)
+      .map(formatItemName)
+      .filter(Boolean);
+
+    const staplesItems = rawStaplesItems
+      .filter(isItemAvailable)
+      .map(formatItemName)
+      .filter(Boolean);
+
     const combined = [...staplesItems, ...menuItems];
     return [...new Set(combined)];
   };
