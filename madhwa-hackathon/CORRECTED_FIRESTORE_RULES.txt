@@ -1,48 +1,147 @@
 rules_version = '2';
+
 service cloud.firestore {
   match /databases/{database}/documents {
-    
-    // ✅ YOUR EXISTING APP RULES (Keep these as-is)
+
+    // =========================================================
+    // HELPER
+    // =========================================================
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn()
+        && exists(
+          /databases/$(database)/documents/users/$(request.auth.uid)
+        )
+        && get(
+          /databases/$(database)/documents/users/$(request.auth.uid)
+        ).data.role == 'admin';
+    }
+
+
+    // =========================================================
+    // USERS
+    // =========================================================
+
     match /users/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+
+      // A user can read their own profile.
+      // Admin can read all user profiles.
+      allow read: if isSignedIn()
+                  && (
+                    request.auth.uid == userId
+                    || isAdmin()
+                  );
+
+      // Only admins can create/update/delete user profiles.
+      allow create, update, delete: if isAdmin();
     }
-    
-    match /menus/{menuId} {
-      allow read: if request.auth != null;
-      allow write: if request.auth != null && 
-                   get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+
+
+    // =========================================================
+    // MENUS
+    // =========================================================
+
+    match /menus/{date} {
+
+      // Logged-in users can view menus.
+      allow read: if isSignedIn();
+
+      // Only admins can create/update/delete menus.
+      allow create, update, delete: if isAdmin();
     }
-    
-    match /mealSelections/{date}/selections/{email} {
-      allow read, write: if request.auth != null && request.auth.token.email == email;
+
+
+    // =========================================================
+    // DAILY STAPLES
+    // =========================================================
+
+    match /dailyStaples/{documentId} {
+
+      // Logged-in users can view Daily Staples.
+      allow read: if isSignedIn();
+
+      // Only admins can modify Daily Staples.
+      allow create, update, delete: if isAdmin();
     }
-    
-    match /workModes/{date}/modes/{email} {
-      allow read, write: if request.auth != null && request.auth.token.email == email;
+
+
+    // =========================================================
+    // SETTINGS
+    // =========================================================
+
+    match /settings/{settingId} {
+
+      // Logged-in users can read settings.
+      allow read: if isSignedIn();
+
+      // Only admins can modify settings.
+      allow create, update, delete: if isAdmin();
     }
-    
-    match /settings/{document=**} {
-      allow read: if request.auth != null;
-      allow write: if request.auth != null && 
-                   get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+
+
+    // =========================================================
+    // MEAL SELECTIONS
+    // =========================================================
+
+    match /mealSelections/{date}/users/{userId} {
+
+      // Employee can read/write their own selection.
+      allow read, create, update: if isSignedIn()
+                                  && request.auth.uid == userId;
+
+      // Admin can read all employee selections.
+      allow read: if isAdmin();
     }
-    
-    // ✅ NEW: ESP32-SPECIFIC RULES (Add these)
-    // Allow ESP32 to read RFID cards collection
-    match /rfidCards/{uid} {
-      allow read: if request.auth != null && 
-                  (request.auth.token.email == "john.doe@karmic.com" || 
-                   get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
-      allow write: if request.auth != null && 
-                   get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+
+
+    // =========================================================
+    // WORKING MODES
+    // =========================================================
+
+    match /workingModes/{date}/users/{userId} {
+
+      // Employee can read/write their own working mode.
+      allow read, create, update: if isSignedIn()
+                                  && request.auth.uid == userId;
+
+      // Admin can read all working modes.
+      allow read: if isAdmin();
     }
-    
-    // Allow ESP32 to READ meal selections (not write)
-    match /mealSelections/{date}/selections/{email} {
-      allow read: if request.auth != null && 
-                  (request.auth.token.email == email || 
-                   request.auth.token.email == "john.doe@karmic.com");
-      allow write: if request.auth != null && request.auth.token.email == email;
+
+
+    // =========================================================
+    // REPORTS
+    // =========================================================
+
+    match /reports/{date} {
+
+      // Only admins can access reports.
+      allow read, create, update, delete: if isAdmin();
+    }
+
+
+    // =========================================================
+    // ANNOUNCEMENTS
+    // =========================================================
+
+    match /announcements/{announcementId} {
+
+      // Only admins can create/delete/manage announcements
+      // for now.
+      allow read, create, update, delete: if isAdmin();
+    }
+
+
+    // =========================================================
+    // DENY EVERYTHING ELSE
+    // =========================================================
+
+    match /{document=**} {
+      allow read, write: if false;
     }
   }
 }
