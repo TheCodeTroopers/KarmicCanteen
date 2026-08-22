@@ -342,19 +342,19 @@ const goToPreviousPage = () => {
                 <div className="menu-column">
                   <h4>🌅 Breakfast</h4>
                   <ul>
-                    {menu.breakfast?.map((item, i) => <li key={i}>{item}</li>) || <li>No items</li>}
+                    {menu.breakfast?.map((item, i) => <li key={i}>{typeof item === 'object' && item !== null ? item.name : item}</li>) || <li>No items</li>}
                   </ul>
                 </div>
                 <div className="menu-column">
                   <h4>🌞 Lunch</h4>
                   <ul>
-                    {menu.lunch?.map((item, i) => <li key={i}>{item}</li>) || <li>No items</li>}
+                    {menu.lunch?.map((item, i) => <li key={i}>{typeof item === 'object' && item !== null ? item.name : item}</li>) || <li>No items</li>}
                   </ul>
                 </div>
                 <div className="menu-column">
                   <h4>🌙 Snacks</h4>
                   <ul>
-                    {menu.snacks?.map((item, i) => <li key={i}>{item}</li>) || <li>No items</li>}
+                    {menu.snacks?.map((item, i) => <li key={i}>{typeof item === 'object' && item !== null ? item.name : item}</li>) || <li>No items</li>}
                   </ul>
                 </div>
               </div>
