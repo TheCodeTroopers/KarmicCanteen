@@ -1,6 +1,6 @@
 // src/components/Admin/MenuManager.jsx
 import React, { useState, useEffect } from 'react';
-import { doc, setDoc, getDoc, collection, getDocs, deleteDoc } from 'firebase/firestore';
+import { doc, setDoc, getDoc, collection, getDocs, deleteDoc, writeBatch } from 'firebase/firestore';
 import { db } from '../../firebase/config';
 import { getLocalDateString } from '../../utils/dateUtils';
 import './MenuManager.css';
@@ -30,7 +30,7 @@ const MenuManager = () => {
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
    setSelectedDate(getLocalDateString(tomorrow));
-    
+
     fetchExistingMenus();
   }, []);
 
@@ -89,9 +89,9 @@ const MenuManager = () => {
 
   const formatDate = (dateStr) => {
     const date = new Date(dateStr);
-    return date.toLocaleDateString('en-US', { 
-      weekday: 'long', 
-      month: 'short', 
+    return date.toLocaleDateString('en-US', {
+      weekday: 'long',
+      month: 'short',
       day: 'numeric',
       year: 'numeric'
     });
@@ -188,17 +188,49 @@ const MenuManager = () => {
     }));
   };
 
+  const normalizeStapleForMenuCheck = (item) => {
+    if (typeof item === 'string') {
+      return {
+        name: item,
+        available: true,
+        quantity: null
+      };
+    }
+
+    return {
+      name: item?.name || '',
+      available: item?.available !== false,
+      quantity:
+        item?.quantity === null ||
+        item?.quantity === undefined ||
+        item?.quantity === ''
+          ? null
+          : Math.max(0, Number(item.quantity))
+    };
+  };
+
+  const normalizeName = (name) => (name || '').trim().toLowerCase();
+
+  const itemsAreEqual = (a, b) => (
+    normalizeName(a?.name) === normalizeName(b?.name) &&
+    a?.available === b?.available &&
+    (a?.quantity ?? null) === (b?.quantity ?? null)
+  );
+
+  const removeItemByName = (items, name) =>
+    items.filter(item => normalizeName(item?.name) !== normalizeName(name));
+
+  const findItemByName = (items, name) =>
+    items.find(item => normalizeName(item?.name) === normalizeName(name));
+
   const handleSaveMenu = async () => {
     if (!selectedDate) {
       showMessage('error', 'Please select a date');
       return;
     }
 
-    const totalItems =
-      menuItems.breakfast.length +
-      menuItems.lunch.length +
-      menuItems.snacks.length +
-      menuItems.dinner.length;
+    const totalItems = getTotalItems();
+
     if (totalItems === 0) {
       showMessage('error', 'Please add at least one menu item');
       return;
@@ -206,21 +238,136 @@ const MenuManager = () => {
 
     try {
       setLoading(true);
+
       const menuRef = doc(db, 'menus', selectedDate);
-      
-      // Include the date field in the menu document
-      const menuData = {
-        ...menuItems,
-        date: selectedDate,
-        // Add timestamps for createdAt and updatedAt
-        createdAt: new Date().toLocaleString('en-CA'),
-        updatedAt: new Date().toLocaleString('en-CA')
+      const staplesRef = doc(db, 'dailyStaples', 'config');
+
+      // Read the existing menu and Daily Staples configuration so the
+      // save operation can detect cross-category conflicts.
+      const [existingMenuSnap, staplesSnap] = await Promise.all([
+        getDoc(menuRef),
+        getDoc(staplesRef)
+      ]);
+
+      const existingMenu = existingMenuSnap.exists()
+        ? existingMenuSnap.data()
+        : {
+            breakfast: [],
+            lunch: [],
+            snacks: [],
+            dinner: []
+          };
+
+      const existingStaples = staplesSnap.exists()
+        ? staplesSnap.data()
+        : {
+            breakfast: [],
+            lunch: [],
+            snacks: [],
+            dinner: []
+          };
+
+      const nextStaples = {
+        breakfast: (existingStaples.breakfast || []).map(normalizeStapleForMenuCheck),
+        lunch: (existingStaples.lunch || []).map(normalizeStapleForMenuCheck),
+        snacks: (existingStaples.snacks || []).map(normalizeStapleForMenuCheck),
+        dinner: (existingStaples.dinner || []).map(normalizeStapleForMenuCheck)
       };
-      
-      await setDoc(menuRef, menuData);
-      
-      showMessage('success', `Menu saved successfully for ${formatDate(selectedDate)}!`);
-      fetchExistingMenus(); // Refresh the list
+
+      // Check each menu item against Daily Staples in the SAME meal category.
+      // Existing items in the selected date's menu are not conflicts.
+      for (const mealType of ['breakfast', 'lunch', 'snacks', 'dinner']) {
+        for (const menuItem of menuItems[mealType]) {
+          const stapleItem = findItemByName(nextStaples[mealType], menuItem.name);
+
+          if (!stapleItem) continue;
+
+          // The item is already a Daily Staple. Ask before moving it.
+          const confirmed = window.confirm(
+            `"${menuItem.name}" is already a Daily Staple for ${mealType}.\n\n` +
+            `Do you want to remove it from Daily Staples and move it to the ` +
+            `${formatDate(selectedDate)} menu with quantity ${menuItem.quantity ?? 0}?`
+          );
+
+          if (!confirmed) {
+            showMessage(
+              'info',
+              `Save cancelled. "${menuItem.name}" remains a Daily Staple.`
+            );
+            return;
+          }
+
+          nextStaples[mealType] = removeItemByName(
+            nextStaples[mealType],
+            menuItem.name
+          );
+        }
+      }
+
+      const nextMenu = {
+        breakfast: menuItems.breakfast,
+        lunch: menuItems.lunch,
+        snacks: menuItems.snacks,
+        dinner: menuItems.dinner
+      };
+
+      // Detect whether the menu content actually changed.
+      const menuChanged = ['breakfast', 'lunch', 'snacks', 'dinner'].some(
+        mealType => {
+          const oldItems = (existingMenu[mealType] || []).map(normalizeMenuItem);
+          const newItems = nextMenu[mealType];
+
+          if (oldItems.length !== newItems.length) return true;
+
+          return oldItems.some((oldItem, index) =>
+            !itemsAreEqual(oldItem, newItems[index])
+          );
+        }
+      );
+
+      const staplesChanged = ['breakfast', 'lunch', 'snacks', 'dinner'].some(
+        mealType =>
+          (existingStaples[mealType] || []).length !==
+          nextStaples[mealType].length ||
+          (existingStaples[mealType] || []).some((item, index) => {
+            const oldItem = normalizeStapleForMenuCheck(item);
+            const newItem = nextStaples[mealType][index];
+            return !itemsAreEqual(oldItem, newItem);
+          })
+      );
+
+      if (!menuChanged && !staplesChanged) {
+        showMessage('info', 'No changes detected. Nothing was updated.');
+        return;
+      }
+
+      const batch = writeBatch(db);
+
+      batch.set(menuRef, {
+        ...nextMenu,
+        date: selectedDate,
+        createdAt:
+          existingMenu.createdAt || new Date().toLocaleString('en-CA'),
+        updatedAt: new Date().toLocaleString('en-CA')
+      });
+
+      // Only write Daily Staples when a confirmed move actually changed them.
+      if (staplesChanged) {
+        batch.set(staplesRef, {
+          ...existingStaples,
+          ...nextStaples,
+          updatedAt: new Date().toISOString()
+        });
+      }
+
+      await batch.commit();
+
+      showMessage(
+        'success',
+        `Menu saved successfully for ${formatDate(selectedDate)}!`
+      );
+
+      await fetchExistingMenus();
     } catch (error) {
       console.error('Error saving menu:', error);
       showMessage('error', 'Failed to save menu. Please try again.');
@@ -237,15 +384,16 @@ const MenuManager = () => {
     try {
       const menuRef = doc(db, 'menus', date);
       await deleteDoc(menuRef);
-      
+
       showMessage('success', 'Menu deleted successfully');
       fetchExistingMenus();
-      
+
       if (date === selectedDate) {
         setMenuItems({
           breakfast: [],
           lunch: [],
-          snacks: []
+          snacks: [],
+          dinner: []
         });
       }
     } catch (error) {
@@ -328,7 +476,7 @@ const goToPreviousPage = () => {
                 onChange={(e) => setCurrentItem(prev => ({ ...prev, breakfast: e.target.value }))}
                 onKeyPress={(e) => e.key === 'Enter' && handleAddItem('breakfast')}
               />
-              <button 
+              <button
                 className="btn btn-primary"
                 onClick={() => handleAddItem('breakfast')}
               >
@@ -413,7 +561,7 @@ const goToPreviousPage = () => {
                 onChange={(e) => setCurrentItem(prev => ({ ...prev, lunch: e.target.value }))}
                 onKeyPress={(e) => e.key === 'Enter' && handleAddItem('lunch')}
               />
-              <button 
+              <button
                 className="btn btn-primary"
                 onClick={() => handleAddItem('lunch')}
               >
@@ -498,7 +646,7 @@ const goToPreviousPage = () => {
                 onChange={(e) => setCurrentItem(prev => ({ ...prev, snacks: e.target.value }))}
                 onKeyPress={(e) => e.key === 'Enter' && handleAddItem('snacks')}
               />
-              <button 
+              <button
                 className="btn btn-primary"
                 onClick={() => handleAddItem('snacks')}
               >
@@ -583,7 +731,7 @@ const goToPreviousPage = () => {
                 onChange={(e) => setCurrentItem(prev => ({ ...prev, dinner: e.target.value }))}
                 onKeyPress={(e) => e.key === 'Enter' && handleAddItem('dinner')}
               />
-              <button 
+              <button
                 className="btn btn-primary"
                 onClick={() => handleAddItem('dinner')}
               >
