@@ -9,8 +9,9 @@
 // quantity = null means quantity is not being tracked.
 
 import React, { useState, useEffect } from 'react';
-import { doc, setDoc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, writeBatch } from 'firebase/firestore';
 import { db } from '../../firebase/config';
+import { getLocalDateString } from '../../utils/dateUtils';
 import {
   Coffee,
   Soup,
@@ -115,6 +116,10 @@ const StaplesManager = () => {
 
   const [saving, setSaving] = useState(false);
 
+  // Daily Staples are global, but cross-category moves are checked against
+  // this specific menu date. Default to tomorrow, matching MenuManager.
+  const [selectedMenuDate, setSelectedMenuDate] = useState('');
+
   const [message, setMessage] = useState({
     type: '',
     text: ''
@@ -128,6 +133,9 @@ const StaplesManager = () => {
    */
 
   useEffect(() => {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    setSelectedMenuDate(getLocalDateString(tomorrow));
     loadStaples();
   }, []);
 
@@ -421,54 +429,205 @@ const StaplesManager = () => {
    * ----------------------------------------------------------
    */
 
+  const normalizeName = (name) => (name || '').trim().toLowerCase();
+
+  const normalizeMenuItem = (item) => {
+    if (typeof item === 'string') {
+      return {
+        name: item,
+        available: true,
+        quantity: 0
+      };
+    }
+
+    return {
+      name: item?.name || '',
+      available: item?.available !== false,
+      quantity:
+        item?.quantity === null ||
+        item?.quantity === undefined ||
+        item?.quantity === ''
+          ? 0
+          : Math.max(0, Number(item.quantity))
+    };
+  };
+
+  const itemsAreEqual = (a, b) => (
+    normalizeName(a?.name) === normalizeName(b?.name) &&
+    a?.available === b?.available &&
+    (a?.quantity ?? null) === (b?.quantity ?? null)
+  );
+
+  const removeItemByName = (items, name) =>
+    items.filter(item => normalizeName(item?.name) !== normalizeName(name));
+
+  const findItemByName = (items, name) =>
+    items.find(item => normalizeName(item?.name) === normalizeName(name));
+
   const handleSave = async () => {
+    if (!selectedMenuDate) {
+      showMessage('error', 'Please select the menu date to check for conflicts');
+      return;
+    }
 
     try {
-
       setSaving(true);
 
+      const staplesRef = doc(db, 'dailyStaples', 'config');
+      const menuRef = doc(db, 'menus', selectedMenuDate);
 
-      const ref = doc(
-        db,
-        'dailyStaples',
-        'config'
+      // Read both documents before saving so a move can be performed
+      // as one atomic Firestore batch.
+      const [staplesSnap, menuSnap] = await Promise.all([
+        getDoc(staplesRef),
+        getDoc(menuRef)
+      ]);
+
+      const existingStaples = staplesSnap.exists()
+        ? staplesSnap.data()
+        : {
+            breakfast: [],
+            lunch: [],
+            snacks: [],
+            dinner: []
+          };
+
+      const existingMenu = menuSnap.exists()
+        ? menuSnap.data()
+        : {
+            breakfast: [],
+            lunch: [],
+            snacks: [],
+            dinner: []
+          };
+
+      const nextStaples = {
+        breakfast: staples.breakfast.map(normalizeStaple),
+        lunch: staples.lunch.map(normalizeStaple),
+        snacks: staples.snacks.map(normalizeStaple),
+        dinner: staples.dinner.map(normalizeStaple)
+      };
+
+      const nextMenu = {
+        breakfast: (existingMenu.breakfast || []).map(normalizeMenuItem),
+        lunch: (existingMenu.lunch || []).map(normalizeMenuItem),
+        snacks: (existingMenu.snacks || []).map(normalizeMenuItem),
+        dinner: (existingMenu.dinner || []).map(normalizeMenuItem)
+      };
+
+      // Check each Daily Staple against the menu for ONLY the selected date
+      // and ONLY the same meal category.
+      for (const mealType of ['breakfast', 'lunch', 'snacks', 'dinner']) {
+        for (const stapleItem of nextStaples[mealType]) {
+          const menuItem = findItemByName(
+            nextMenu[mealType],
+            stapleItem.name
+          );
+
+          if (!menuItem) continue;
+
+          const confirmed = window.confirm(
+            `"${stapleItem.name}" is already in the ${mealType} menu ` +
+            `for ${formatMenuDate(selectedMenuDate)}.\n\n` +
+            `Do you want to remove it from the menu and move it to ` +
+            `Daily Staples with quantity ` +
+            `${stapleItem.quantity === null ? 'unlimited' : stapleItem.quantity}?`
+          );
+
+          if (!confirmed) {
+            showMessage(
+              'info',
+              `Save cancelled. "${stapleItem.name}" remains in the menu.`
+            );
+            return;
+          }
+
+          nextMenu[mealType] = removeItemByName(
+            nextMenu[mealType],
+            stapleItem.name
+          );
+        }
+      }
+
+      // Compare the resulting configuration with the currently stored data.
+      const staplesChanged = ['breakfast', 'lunch', 'snacks', 'dinner'].some(
+        mealType => {
+          const oldItems = (existingStaples[mealType] || []).map(normalizeStaple);
+          const newItems = nextStaples[mealType];
+
+          if (oldItems.length !== newItems.length) return true;
+
+          return oldItems.some((oldItem, index) =>
+            !itemsAreEqual(oldItem, newItems[index])
+          );
+        }
       );
 
+      const menuChanged = ['breakfast', 'lunch', 'snacks', 'dinner'].some(
+        mealType => {
+          const oldItems = (existingMenu[mealType] || []).map(normalizeMenuItem);
+          const newItems = nextMenu[mealType];
 
-      await setDoc(ref, {
+          if (oldItems.length !== newItems.length) return true;
 
-        ...staples,
+          return oldItems.some((oldItem, index) =>
+            !itemsAreEqual(oldItem, newItems[index])
+          );
+        }
+      );
 
-        updatedAt:
-          new Date().toISOString()
+      if (!staplesChanged && !menuChanged) {
+        showMessage('info', 'No changes detected. Nothing was updated.');
+        return;
+      }
 
+      const batch = writeBatch(db);
+
+      batch.set(staplesRef, {
+        ...nextStaples,
+        updatedAt: new Date().toISOString()
       });
 
+      // Only update the selected date's menu if a confirmed move changed it.
+      if (menuChanged) {
+        batch.set(menuRef, {
+          ...nextMenu,
+          date: selectedMenuDate,
+          createdAt:
+            existingMenu.createdAt || new Date().toLocaleString('en-CA'),
+          updatedAt: new Date().toLocaleString('en-CA')
+        });
+      }
+
+      await batch.commit();
+
+      setStaples(nextStaples);
 
       showMessage(
         'success',
         'Daily staples saved successfully!'
       );
-
-
     } catch (error) {
-
-      console.error(
-        'Error saving daily staples:',
-        error
-      );
+      console.error('Error saving daily staples:', error);
 
       showMessage(
         'error',
         'Failed to save. Please try again.'
       );
-
     } finally {
-
       setSaving(false);
     }
   };
 
+  const formatMenuDate = (dateStr) => {
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('en-US', {
+      weekday: 'long',
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
+    });
+  };
 
   /*
    * ----------------------------------------------------------
@@ -540,6 +699,24 @@ const StaplesManager = () => {
 
         </div>
 
+      </div>
+
+
+      <div className="staples-date-selector" style={{ marginBottom: '16px' }}>
+        <label htmlFor="staples-menu-date">
+          📅 Menu date to check for conflicts
+        </label>
+        <input
+          id="staples-menu-date"
+          type="date"
+          value={selectedMenuDate}
+          min={getLocalDateString()}
+          onChange={(e) => setSelectedMenuDate(e.target.value)}
+          style={{ marginLeft: '10px' }}
+        />
+        <span style={{ marginLeft: '10px', opacity: 0.75 }}>
+          Daily Staples remain global; this date is used only for Menu conflict checking.
+        </span>
       </div>
 
 
