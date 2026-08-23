@@ -176,36 +176,40 @@ const initializeWeek = async () => {
     }
   };
 
-  // Merge staples + that day's special menu items for a given meal, deduplicated.
+  // Normalize menu/staple items while preserving quantity and availability.
+  // Weekly selections remain item names for compatibility with mealSelections.
+  const normalizeMenuItem = (item) => {
+    if (typeof item === 'string') return { name: item.trim(), available: true, quantity: null };
+    if (item && typeof item === 'object') {
+      const name = String(item.name || '').trim();
+      let quantity = null;
+      if (item.quantity !== null && item.quantity !== undefined && item.quantity !== '') {
+        const parsed = Number(item.quantity);
+        quantity = Number.isFinite(parsed) ? Math.max(0, parsed) : null;
+      }
+      return { name, available: item.available !== false, quantity };
+    }
+    return { name: String(item || '').trim(), available: true, quantity: null };
+  };
+
   const getAvailableItems = (dateStr, mealType) => {
     const rawMenuItems = weeklyMenus[dateStr]?.[mealType] || [];
     const rawStaplesItems = showDefaultMenu ? (staples[mealType] || []) : [];
+    const combined = [
+      ...rawStaplesItems.map(normalizeMenuItem),
+      ...rawMenuItems.map(normalizeMenuItem)
+    ].filter(item => item.name && item.available);
 
-    const formatItemName = (item) => {
-      if (typeof item === 'string') return item;
-      if (item && typeof item === 'object') return item.name || '';
-      return String(item || '');
-    };
-
-    const isItemAvailable = (item) => {
-      if (typeof item === 'object' && item !== null) {
-        return item.available !== false;
+    const uniqueItems = [];
+    const seen = new Set();
+    combined.forEach(item => {
+      const key = item.name.toLowerCase();
+      if (!seen.has(key)) {
+        seen.add(key);
+        uniqueItems.push(item);
       }
-      return true;
-    };
-
-    const dayMenuItems = rawMenuItems
-      .filter(isItemAvailable)
-      .map(formatItemName)
-      .filter(Boolean);
-
-    const staplesItems = rawStaplesItems
-      .filter(isItemAvailable)
-      .map(formatItemName)
-      .filter(Boolean);
-
-    const combined = [...staplesItems, ...dayMenuItems];
-    return [...new Set(combined)];
+    });
+    return uniqueItems;
   };
 
   const isEditAllowed = (dateStr) => {
@@ -377,16 +381,24 @@ const initializeWeek = async () => {
                       </div>
                       <div className="item-chip-row">
                         {availableItems.map(item => {
-                          const isSelected = selectedItems.includes(item);
+                          const isSelected = selectedItems.includes(item.name);
+                          const isOutOfStock = item.quantity !== null && item.quantity <= 0;
                           return (
                             <button
-                              key={item}
+                              key={item.name}
                               type="button"
                               className={`item-chip ${isSelected ? 'selected' : ''}`}
-                              onClick={() => handleItemToggle(day.date, key, item)}
+                              onClick={() => handleItemToggle(day.date, key, item.name)}
+                              disabled={isOutOfStock}
+                              title={isOutOfStock ? `${item.name} is out of stock` : item.quantity !== null ? `${item.quantity} available` : item.name}
                             >
                               {isSelected && <Check size={12} />}
-                              {item}
+                              <span>{item.name}</span>
+                              {item.quantity !== null && (
+                                <span style={{ marginLeft: '6px', fontSize: '11px', opacity: 0.75 }}>
+                                  {isOutOfStock ? 'Out of stock' : `${item.quantity} left`}
+                                </span>
+                              )}
                             </button>
                           );
                         })}

@@ -194,36 +194,40 @@ const EmployeeDashboard = () => {
     }
   };
 
-  // Merge staples + tomorrow's special menu items for a meal, deduplicated.
+  // Normalize menu/staple items while preserving quantity and availability.
+  // Selections remain item names for compatibility with mealSelections.
+  const normalizeMenuItem = (item) => {
+    if (typeof item === 'string') return { name: item.trim(), available: true, quantity: null };
+    if (item && typeof item === 'object') {
+      const name = String(item.name || '').trim();
+      let quantity = null;
+      if (item.quantity !== null && item.quantity !== undefined && item.quantity !== '') {
+        const parsed = Number(item.quantity);
+        quantity = Number.isFinite(parsed) ? Math.max(0, parsed) : null;
+      }
+      return { name, available: item.available !== false, quantity };
+    }
+    return { name: String(item || '').trim(), available: true, quantity: null };
+  };
+
   const getAvailableItems = (mealType) => {
     const rawMenuItems = menu?.[mealType] || [];
     const rawStaplesItems = showDefaultMenu ? (staples[mealType] || []) : [];
+    const combined = [
+      ...rawStaplesItems.map(normalizeMenuItem),
+      ...rawMenuItems.map(normalizeMenuItem)
+    ].filter(item => item.name && item.available);
 
-    const formatItemName = (item) => {
-      if (typeof item === 'string') return item;
-      if (item && typeof item === 'object') return item.name || '';
-      return String(item || '');
-    };
-
-    const isItemAvailable = (item) => {
-      if (typeof item === 'object' && item !== null) {
-        return item.available !== false;
+    const uniqueItems = [];
+    const seen = new Set();
+    combined.forEach(item => {
+      const key = item.name.toLowerCase();
+      if (!seen.has(key)) {
+        seen.add(key);
+        uniqueItems.push(item);
       }
-      return true;
-    };
-
-    const menuItems = rawMenuItems
-      .filter(isItemAvailable)
-      .map(formatItemName)
-      .filter(Boolean);
-
-    const staplesItems = rawStaplesItems
-      .filter(isItemAvailable)
-      .map(formatItemName)
-      .filter(Boolean);
-
-    const combined = [...staplesItems, ...menuItems];
-    return [...new Set(combined)];
+    });
+    return uniqueItems;
   };
 
   const loadUserSelections = async () => {
@@ -551,14 +555,14 @@ const EmployeeDashboard = () => {
               />
             </div>
             <div className="view-toggle">
-              <button 
+              <button
                 className={`toggle-btn ${viewMode === 'daily' ? 'active' : ''}`}
                 onClick={() => setViewMode('daily')}
                 style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
               >
                 <Calendar size={14} /> Daily
               </button>
-              <button 
+              <button
                 className={`toggle-btn ${viewMode === 'weekly' ? 'active' : ''}`}
                 onClick={() => setViewMode('weekly')}
                 style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
@@ -571,7 +575,7 @@ const EmployeeDashboard = () => {
       </div>
 
       {viewMode === 'weekly' ? (
-        <WeeklyMealSelector 
+        <WeeklyMealSelector
           showDefaultMenu={showDefaultMenu}
           setShowDefaultMenu={setShowDefaultMenu}
         />
@@ -618,17 +622,24 @@ const EmployeeDashboard = () => {
                       ) : (
                         <div className="item-chip-row">
                           {availableItems.map(item => {
-                            const isSelected = selectedItems.includes(item);
+                            const isSelected = selectedItems.includes(item.name);
+                            const isOutOfStock = item.quantity !== null && item.quantity <= 0;
                             return (
                               <button
-                                key={item}
+                                key={item.name}
                                 type="button"
                                 className={`item-chip ${isSelected ? 'selected' : ''}`}
-                                onClick={() => handleItemToggle(key, item)}
-                                disabled={deadlinePassed && !isSelected}
+                                onClick={() => handleItemToggle(key, item.name)}
+                                disabled={isOutOfStock || (deadlinePassed && !isSelected)}
+                                title={isOutOfStock ? `${item.name} is out of stock` : item.quantity !== null ? `${item.quantity} available` : item.name}
                               >
                                 {isSelected && <Check size={12} />}
-                                {item}
+                                <span>{item.name}</span>
+                                {item.quantity !== null && (
+                                  <span style={{ marginLeft: '6px', fontSize: '11px', opacity: 0.75 }}>
+                                    {isOutOfStock ? 'Out of stock' : `${item.quantity} left`}
+                                  </span>
+                                )}
                               </button>
                             );
                           })}
