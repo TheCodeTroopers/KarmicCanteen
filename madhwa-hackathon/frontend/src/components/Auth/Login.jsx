@@ -122,8 +122,8 @@ const Login = () => {
                 type="button"
                 className="btn btn-secondary"
                 onClick={() => {
-                  setEmail('jane.smith@karmicsolutions.com');
-                  setPassword('karmic123');
+                  setEmail('employee@sode-edu.in');
+                  setPassword('employee@123');
                 }}
                 style={{ fontSize: '12px', padding: '6px 12px', flex: 1 }}
               >
@@ -133,8 +133,8 @@ const Login = () => {
                 type="button"
                 className="btn btn-secondary"
                 onClick={() => {
-                  setEmail('john.doe@karmicsolutions.com');
-                  setPassword('karmic123');
+                  setEmail('admin@sode-edu.in');
+                  setPassword('admin@123');
                 }}
                 style={{ fontSize: '12px', padding: '6px 12px', flex: 1 }}
               >
