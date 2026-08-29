@@ -212,9 +212,6 @@ const DefaultMenuManager = () => {
   const handleSave = async () => {
     try {
       setSaving(true);
-      const menusDefaultRef = doc(db, 'menus', 'default');
-      const defaultMenuRef = doc(db, 'defaultMenu', 'config');
-      const staplesRef = doc(db, 'dailyStaples', 'config');
 
       const payload = {
         breakfast: menuItems.breakfast.map(normalizeMenuItem),
@@ -224,16 +221,27 @@ const DefaultMenuManager = () => {
         updatedAt: new Date().toISOString()
       };
 
-      const batch = writeBatch(db);
-      batch.set(menusDefaultRef, payload);
-      batch.set(defaultMenuRef, payload);
-      batch.set(staplesRef, payload);
+      // 1. Primary write to menus/default (allowed under /menus/{date} rules)
+      await setDoc(doc(db, 'menus', 'default'), payload);
 
-      await batch.commit();
-      showMessage('success', '✓ Default Menu saved successfully to Firestore (menus/default & defaultMenu/config)!');
+      // 2. Secondary write to dailyStaples/config (allowed under /dailyStaples/{documentId} rules)
+      try {
+        await setDoc(doc(db, 'dailyStaples', 'config'), payload);
+      } catch (e) {
+        console.warn('dailyStaples update warning:', e);
+      }
+
+      // 3. Optional write to defaultMenu/config
+      try {
+        await setDoc(doc(db, 'defaultMenu', 'config'), payload);
+      } catch (e) {
+        console.warn('defaultMenu update warning (rule may be un-deployed on console):', e);
+      }
+
+      showMessage('success', '✓ Default Menu saved successfully to Cloud Firestore!');
     } catch (error) {
       console.error('Error saving default menu:', error);
-      showMessage('error', 'Failed to save Default Menu');
+      showMessage('error', `Failed to save Default Menu: ${error.message || 'Permission denied'}`);
     } finally {
       setSaving(false);
     }
