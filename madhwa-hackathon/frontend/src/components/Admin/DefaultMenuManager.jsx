@@ -104,8 +104,13 @@ const DefaultMenuManager = () => {
   const loadDefaultMenu = async () => {
     try {
       setLoading(true);
-      let ref = doc(db, 'defaultMenu', 'config');
+      let ref = doc(db, 'menus', 'default');
       let snap = await getDoc(ref);
+
+      if (!snap.exists()) {
+        ref = doc(db, 'defaultMenu', 'config');
+        snap = await getDoc(ref);
+      }
 
       if (!snap.exists()) {
         ref = doc(db, 'dailyStaples', 'config');
@@ -207,6 +212,7 @@ const DefaultMenuManager = () => {
   const handleSave = async () => {
     try {
       setSaving(true);
+      const menusDefaultRef = doc(db, 'menus', 'default');
       const defaultMenuRef = doc(db, 'defaultMenu', 'config');
       const staplesRef = doc(db, 'dailyStaples', 'config');
 
@@ -219,11 +225,12 @@ const DefaultMenuManager = () => {
       };
 
       const batch = writeBatch(db);
+      batch.set(menusDefaultRef, payload);
       batch.set(defaultMenuRef, payload);
       batch.set(staplesRef, payload);
 
       await batch.commit();
-      showMessage('success', '✓ Default Menu saved successfully to Firestore!');
+      showMessage('success', '✓ Default Menu saved successfully to Firestore (menus/default & defaultMenu/config)!');
     } catch (error) {
       console.error('Error saving default menu:', error);
       showMessage('error', 'Failed to save Default Menu');

@@ -87,8 +87,12 @@ const initializeWeek = async () => {
 
   const loadStaples = async () => {
     try {
-      let ref = doc(db, 'defaultMenu', 'config');
+      let ref = doc(db, 'menus', 'default');
       let snap = await getDoc(ref);
+      if (!snap.exists()) {
+        ref = doc(db, 'defaultMenu', 'config');
+        snap = await getDoc(ref);
+      }
       if (!snap.exists()) {
         ref = doc(db, 'dailyStaples', 'config');
         snap = await getDoc(ref);

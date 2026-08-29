@@ -405,7 +405,10 @@ const MenuManager = () => {
   const handleLoadDefaultMenu = async () => {
     try {
       setLoading(true);
-      let snap = await getDoc(doc(db, 'defaultMenu', 'config'));
+      let snap = await getDoc(doc(db, 'menus', 'default'));
+      if (!snap.exists()) {
+        snap = await getDoc(doc(db, 'defaultMenu', 'config'));
+      }
       if (!snap.exists()) {
         snap = await getDoc(doc(db, 'dailyStaples', 'config'));
       }
