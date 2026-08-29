@@ -7,8 +7,8 @@ import MenuManager from './MenuManager';
 import ReportsDashboard from './ReportsDashboard';
 import AdminSettings from './AdminSettings';
 import FestivalAnnouncements from './FestivalAnnouncements';
+import DefaultMenuManager from './DefaultMenuManager';
 import './AdminDashboard.css';
-import StaplesManager from './StaplesManager';
 
 const AdminDashboard = () => {
   return (
@@ -35,23 +35,17 @@ const AdminDashboard = () => {
           <UtensilsCrossed size={16} /> Menu
         </NavLink>
         <NavLink 
-        to="/admin/staples" 
-        className={({ isActive }) => isActive ? 'tab active' : 'tab'}
+          to="/admin/default-menu" 
+          className={({ isActive }) => isActive ? 'tab active' : 'tab'}
         >
-          <Coffee size={16} /> Daily Staples
-          </NavLink>
+          <Coffee size={16} /> Default Menu
+        </NavLink>
         <NavLink 
           to="/admin/reports" 
           className={({ isActive }) => isActive ? 'tab active' : 'tab'}
         >
           <TrendingUp size={16} /> Reports
         </NavLink>
-        {/* <NavLink 
-          to="/admin/predictions" 
-          className={({ isActive }) => isActive ? 'tab active' : 'tab'}
-        >
-          <Cpu size={16} /> AI Predictions
-        </NavLink> */}
         <NavLink 
           to="/admin/announcements" 
           className={({ isActive }) => isActive ? 'tab active' : 'tab'}
@@ -71,11 +65,11 @@ const AdminDashboard = () => {
           <Route index element={<Navigate to="analytics" replace />} />
           <Route path="analytics" element={<AnalyticsDashboard />} />
           <Route path="menu" element={<MenuManager />} />
+          <Route path="default-menu" element={<DefaultMenuManager />} />
+          <Route path="staples" element={<DefaultMenuManager />} />
           <Route path="reports" element={<ReportsDashboard />} />
-          {/* <Route path="predictions" element={<PredictionsDashboard />} /> */}
           <Route path="announcements" element={<FestivalAnnouncements />} />
           <Route path="settings" element={<AdminSettings />} />
-          <Route path="staples" element={<StaplesManager />} />
         </Routes>
       </div>
     </div>

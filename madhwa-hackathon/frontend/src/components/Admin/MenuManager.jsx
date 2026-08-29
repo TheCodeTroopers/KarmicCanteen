@@ -402,6 +402,34 @@ const MenuManager = () => {
     }
   };
 
+  const handleLoadDefaultMenu = async () => {
+    try {
+      setLoading(true);
+      let snap = await getDoc(doc(db, 'defaultMenu', 'config'));
+      if (!snap.exists()) {
+        snap = await getDoc(doc(db, 'dailyStaples', 'config'));
+      }
+
+      if (snap.exists()) {
+        const data = snap.data();
+        setMenuItems({
+          breakfast: (data.breakfast || []).map(normalizeMenuItem),
+          lunch: (data.lunch || []).map(normalizeMenuItem),
+          snacks: (data.snacks || []).map(normalizeMenuItem),
+          dinner: (data.dinner || []).map(normalizeMenuItem)
+        });
+        showMessage('success', 'Loaded Default Menu from Firestore!');
+      } else {
+        showMessage('error', 'No Default Menu configured in Firestore yet.');
+      }
+    } catch (error) {
+      console.error('Error loading default menu:', error);
+      showMessage('error', 'Failed to load Default Menu');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const showMessage = (type, text) => {
     setMessage({ type, text });
     setTimeout(() => setMessage({ type: '', text: '' }), 5000);
@@ -452,7 +480,15 @@ const goToPreviousPage = () => {
             </span>
           </div>
 
-          <div className="menu-stats">
+          <div className="menu-stats" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm"
+              onClick={handleLoadDefaultMenu}
+              title="Populate items from Default Menu stored in Firestore"
+            >
+              📋 Load Default Menu
+            </button>
             <div className="stat-box">
               <span className="stat-label">Total Items</span>
               <span className="stat-value">{getTotalItems()}</span>
