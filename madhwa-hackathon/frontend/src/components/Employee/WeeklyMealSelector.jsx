@@ -1,7 +1,8 @@
 // src/components/Employee/WeeklyMealSelector.jsx
 import React, { useState, useEffect } from 'react';
-import { doc, getDoc, setDoc, collection, getDocs } from 'firebase/firestore';
+import { doc, setDoc } from 'firebase/firestore';
 import { db } from '../../firebase/config';
+import { getDocWithCache, docCacheKey } from '../../utils/indexedDbCache';
 import { useAuth } from '../../context/AuthContext';
 import { getLocalDateString } from '../../utils/dateUtils';
 import {
@@ -38,6 +39,7 @@ const WeeklyMealSelector = ({ showDefaultMenu, setShowDefaultMenu }) => {
   const [showHistory, setShowHistory] = useState(false);
   const [historyData, setHistoryData] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [offline, setOffline] = useState(false); // True when data was served from IndexedDB cache
   useEffect(() => {
     initializeWeek();
   }, []);
@@ -85,31 +87,57 @@ const initializeWeek = async () => {
   setLoading(false);
 };
 
-  const loadStaples = async () => {
-    try {
-      let ref = doc(db, 'menus', 'default');
-      let snap = await getDoc(ref);
-      if (!snap.exists()) {
-        ref = doc(db, 'defaultMenu', 'config');
-        snap = await getDoc(ref);
-      }
-      if (!snap.exists()) {
-        ref = doc(db, 'dailyStaples', 'config');
-        snap = await getDoc(ref);
-      }
-      if (snap.exists()) {
-        const data = snap.data();
-        setStaples({
-          breakfast: data.breakfast || [],
-          lunch: data.lunch || [],
-          snacks: data.snacks || [],
-          dinner: data.dinner || [],
-        });
-      }
-    } catch (error) {
-      console.error('Error loading default menu:', error);
+const loadStaples = async () => {
+  try {
+    let ref = doc(db, 'menus', 'default');
+    let data;
+    let exists = false;
+    let fromCache = false;
+
+    // Try menus/default
+    ({ data, exists, fromCache } = await getDocWithCache(
+      ref,
+      docCacheKey('menus', 'default')
+    ));
+
+    if (fromCache) setOffline(true);
+
+    // Try defaultMenu/config
+    if (!exists) {
+      ref = doc(db, 'defaultMenu', 'config');
+
+      ({ data, exists, fromCache } = await getDocWithCache(
+        ref,
+        docCacheKey('defaultMenu', 'config')
+      ));
+
+      if (fromCache) setOffline(true);
     }
-  };
+
+    // Try dailyStaples/config
+    if (!exists) {
+      ref = doc(db, 'dailyStaples', 'config');
+
+      ({ data, exists, fromCache } = await getDocWithCache(
+        ref,
+        docCacheKey('dailyStaples', 'config')
+      ));
+
+      if (fromCache) setOffline(true);
+    }
+
+    if (exists) {
+      setStaples({
+        breakfast: data.breakfast || [],
+        lunch: data.lunch || [],
+        snacks: data.snacks || [],
+        dinner: data.dinner || [],
+      });
+    }
+  } catch (error) {
+    console.error('Error loading default menu:', error);
+  }
+};
   const fetchHistory = async () => {
   setHistoryLoading(true);
   setShowHistory(true);
@@ -123,10 +151,15 @@ const initializeWeek = async () => {
       const dateStr = getLocalDateString(pastDate);
 
       const selectionRef = doc(db, 'mealSelections', dateStr, 'users', currentUser.uid);
-      const selectionSnap = await getDoc(selectionRef);
+      const selectionResult = await getDocWithCache(
+        selectionRef,
+        docCacheKey('mealSelections', dateStr, 'users', currentUser.uid)
+      );
 
-      if (selectionSnap.exists()) {
-        const data = selectionSnap.data();
+      if (selectionResult.fromCache) setOffline(true);
+
+      if (selectionResult.exists) {
+        const data = selectionResult.data;
         const hasAnyItems = MEAL_TYPES.some(m => (data[m.key] || []).length > 0);
         if (hasAnyItems) {
           results.push({
@@ -158,15 +191,23 @@ const initializeWeek = async () => {
 
       for (const day of days) {
         const menuRef = doc(db, 'menus', day.date);
-        const menuSnap = await getDoc(menuRef);
-        if (menuSnap.exists()) {
-          menusData[day.date] = menuSnap.data();
+        const menuResult = await getDocWithCache(
+          menuRef,
+          docCacheKey('menus', day.date)
+        );
+        if (menuResult.fromCache) setOffline(true);
+        if (menuResult.exists) {
+          menusData[day.date] = menuResult.data;
         }
 
         const selectionRef = doc(db, 'mealSelections', day.date, 'users', currentUser.uid);
-        const selectionSnap = await getDoc(selectionRef);
-        if (selectionSnap.exists()) {
-          const data = selectionSnap.data();
+        const selectionResult = await getDocWithCache(
+          selectionRef,
+          docCacheKey('mealSelections', day.date, 'users', currentUser.uid)
+        );
+        if (selectionResult.fromCache) setOffline(true);
+        if (selectionResult.exists) {
+          const data = selectionResult.data;
           selectionsData[day.date] = {
             breakfast: Array.isArray(data.breakfast) ? data.breakfast : [],
             lunch: Array.isArray(data.lunch) ? data.lunch : [],
@@ -324,6 +365,13 @@ const initializeWeek = async () => {
 
   return (
     <div className="weekly-meal-selector">
+      {offline && (
+        <div className="offline-banner">
+          <AlertTriangle size={16} style={{ marginRight: '6px', verticalAlign: 'middle' }} />
+          You're offline — showing the last saved data. Changes can't be synced until you're back online.
+        </div>
+      )}
+
      <div className="weekly-header">
   <div className="weekly-header-top">
     <h2 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -435,7 +483,7 @@ const initializeWeek = async () => {
         <button
           className="btn btn-primary btn-large"
           onClick={handleSaveWeekly}
-          disabled={saving || getTotalSelectedItems() === 0}
+          disabled={saving || getTotalSelectedItems() === 0 || offline}
         >
           {saving ? 'Saving...' : 'Save Weekly Selections'}
         </button>

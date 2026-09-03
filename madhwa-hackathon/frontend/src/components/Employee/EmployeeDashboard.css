@@ -105,6 +105,21 @@ padding: var(--space-md) var(--space-lg);
   border-left-color: #dc2626;
 }
 
+/* Offline Banner (data served from IndexedDB cache) */
+.offline-banner {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--space-md);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  background: rgba(217, 119, 6, 0.1);
+  color: #b45309;
+  border: 1px solid rgba(217, 119, 6, 0.3);
+}
+
 /* Notification Banner */
 .notification-banner {
   background: rgba(255, 255, 255, 0.9);
