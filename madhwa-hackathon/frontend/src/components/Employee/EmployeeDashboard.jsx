@@ -1,7 +1,8 @@
 // src/components/Employee/EmployeeDashboard.jsx
 import React, { useState, useEffect } from 'react';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, setDoc } from 'firebase/firestore';
 import { db } from '../../firebase/config';
+import { getDocWithCache, docCacheKey } from '../../utils/indexedDbCache';
 import { useAuth } from '../../context/AuthContext';
 import { useTranslation } from 'react-i18next';
 import { getLocalDateString } from '../../utils/dateUtils';
@@ -48,6 +49,7 @@ const EmployeeDashboard = () => {
   const [warningShown, setWarningShown] = useState(false);
   const [viewMode, setViewMode] = useState('daily'); // 'daily' or 'weekly'
   const [showDefaultMenu, setShowDefaultMenu] = useState(true); // Toggle for default menu items
+  const [offline, setOffline] = useState(false); // True when data was served from IndexedDB cache
 
   useEffect(() => {
     fetchDeadlineSettings();
@@ -99,9 +101,12 @@ const EmployeeDashboard = () => {
   const fetchDeadlineSettings = async () => {
     try {
       const settingsRef = doc(db, 'settings', 'deadline');
-      const settingsSnap = await getDoc(settingsRef);
-      if (settingsSnap.exists()) {
-        const data = settingsSnap.data();
+      const { data, exists, fromCache } = await getDocWithCache(
+        settingsRef,
+        docCacheKey('settings', 'deadline')
+      );
+      if (fromCache) setOffline(true);
+      if (exists) {
         setDeadlineHour(data.deadlineHour || 21);
         setDeadlineMinute(data.deadlineMinute || 0);
       }
@@ -147,27 +152,37 @@ const EmployeeDashboard = () => {
       const tomorrow = getTomorrowDate();
      const today = getLocalDateString();
       
-      // First try to get tomorrow's menu
+      // First try to get tomorrow's menu (fresh from Firestore when online,
+      // latest cached copy when offline)
       const menuRef = doc(db, 'menus', tomorrow);
-      const menuSnap = await getDoc(menuRef);
+      const { data: menuData, exists, fromCache } = await getDocWithCache(
+        menuRef,
+        docCacheKey('menus', tomorrow)
+      );
 
-      if (menuSnap.exists()) {
-        const menuData = menuSnap.data();
-        if (menuData.date === tomorrow) {
-          setMenu(menuData);
-          setLoading(false);
-          return;
-        }
+      if (fromCache) setOffline(true);
+
+      if (exists && menuData.date === tomorrow) {
+        setMenu(menuData);
+        setLoading(false);
+        return;
       }
 
       const todayMenuRef = doc(db, 'menus', today);
-      const todayMenuSnap = await getDoc(todayMenuRef);
-      if (todayMenuSnap.exists() && todayMenuSnap.data().date === today) {
+      const todayMenuResult = await getDocWithCache(
+        todayMenuRef,
+        docCacheKey('menus', today)
+      );
+      if (todayMenuResult.exists && todayMenuResult.data.date === today) {
         console.log('Found today\'s menu but not tomorrow\'s');
       }
 
       setMenu(null);
-      showMessage('info', 'No menu available for tomorrow yet. Please check back later.');
+      if (fromCache) {
+        showMessage('info', 'You are offline and no saved menu is available for tomorrow yet.');
+      } else {
+        showMessage('info', 'No menu available for tomorrow yet. Please check back later.');
+      }
     } catch (error) {
       console.error('Error fetching menu:', error);
       showMessage('error', 'Failed to load menu. Please try again later.');
@@ -179,9 +194,12 @@ const EmployeeDashboard = () => {
   const loadStaples = async () => {
     try {
       const ref = doc(db, 'dailyStaples', 'config');
-      const snap = await getDoc(ref);
-      if (snap.exists()) {
-        const data = snap.data();
+      const { data, exists, fromCache } = await getDocWithCache(
+        ref,
+        docCacheKey('dailyStaples', 'config')
+      );
+      if (fromCache) setOffline(true);
+      if (exists) {
         setStaples({
           breakfast: data.breakfast || [],
           lunch: data.lunch || [],
@@ -234,10 +252,14 @@ const EmployeeDashboard = () => {
     try {
       const tomorrow = getTomorrowDate();
       const selectionRef = doc(db, 'mealSelections', tomorrow, 'users', currentUser.uid);
-      const selectionSnap = await getDoc(selectionRef);
+      const { data, exists, fromCache } = await getDocWithCache(
+        selectionRef,
+        docCacheKey('mealSelections', tomorrow, 'users', currentUser.uid)
+      );
 
-      if (selectionSnap.exists()) {
-        const data = selectionSnap.data();
+      if (fromCache) setOffline(true);
+
+      if (exists) {
         if (data.date === tomorrow) {
           const loaded = {
             breakfast: Array.isArray(data.breakfast) ? data.breakfast : [],
@@ -262,10 +284,15 @@ const EmployeeDashboard = () => {
     try {
       const tomorrow = getTomorrowDate();
       const modeRef = doc(db, 'workingModes', tomorrow, 'users', currentUser.uid);
-      const modeSnap = await getDoc(modeRef);
+      const { data, exists, fromCache } = await getDocWithCache(
+        modeRef,
+        docCacheKey('workingModes', tomorrow, 'users', currentUser.uid)
+      );
 
-      if (modeSnap.exists()) {
-        setWorkingMode(modeSnap.data().mode);
+      if (fromCache) setOffline(true);
+
+      if (exists) {
+        setWorkingMode(data.mode);
       } else {
         setShowModeSelector(true);
       }
@@ -301,7 +328,7 @@ const EmployeeDashboard = () => {
   };
 
   const handleChangeModeClick = () => {
-    if (!deadlinePassed) {
+    if (!deadlinePassed && !offline) {
       setShowModeSelector(true);
     }
   };
@@ -484,6 +511,13 @@ const EmployeeDashboard = () => {
           <p className="subtitle">{t('employee.dashboard.subtitle')}</p>
         </div>
       </div>
+
+      {offline && (
+        <div className="offline-banner">
+          <AlertTriangle size={16} style={{ marginRight: '6px', verticalAlign: 'middle' }} />
+          You're offline — showing the last saved data. Changes can't be synced until you're back online.
+        </div>
+      )}
 
       <div className="working-mode-indicator">
         <span className="mode-badge">
@@ -674,7 +708,7 @@ const EmployeeDashboard = () => {
                   <button
                     className="btn btn-primary btn-full save-btn"
                     onClick={handleSubmit}
-                    disabled={deadlinePassed || saving || !hasChanges()}
+                    disabled={deadlinePassed || saving || !hasChanges() || offline}
                   >
                     {saving ? t('auth.signingIn').replace('Signing', 'Saving') : hasChanges() ? t('dashboard.savePreferences') : t('dashboard.noChanges')}
                   </button>
