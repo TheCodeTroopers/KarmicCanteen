@@ -87,26 +87,57 @@ const initializeWeek = async () => {
   setLoading(false);
 };
 
-  const loadStaples = async () => {
-    try {
-      const ref = doc(db, 'dailyStaples', 'config');
-      const { data, exists, fromCache } = await getDocWithCache(
+const loadStaples = async () => {
+  try {
+    let ref = doc(db, 'menus', 'default');
+    let data;
+    let exists = false;
+    let fromCache = false;
+
+    // Try menus/default
+    ({ data, exists, fromCache } = await getDocWithCache(
+      ref,
+      docCacheKey('menus', 'default')
+    ));
+
+    if (fromCache) setOffline(true);
+
+    // Try defaultMenu/config
+    if (!exists) {
+      ref = doc(db, 'defaultMenu', 'config');
+
+      ({ data, exists, fromCache } = await getDocWithCache(
+        ref,
+        docCacheKey('defaultMenu', 'config')
+      ));
+
+      if (fromCache) setOffline(true);
+    }
+
+    // Try dailyStaples/config
+    if (!exists) {
+      ref = doc(db, 'dailyStaples', 'config');
+
+      ({ data, exists, fromCache } = await getDocWithCache(
         ref,
         docCacheKey('dailyStaples', 'config')
-      );
+      ));
+
       if (fromCache) setOffline(true);
-      if (exists) {
-        setStaples({
-          breakfast: data.breakfast || [],
-          lunch: data.lunch || [],
-          snacks: data.snacks || [],
-          dinner: data.dinner || [],
-        });
-      }
-    } catch (error) {
-      console.error('Error loading daily staples:', error);
     }
-  };
+
+    if (exists) {
+      setStaples({
+        breakfast: data.breakfast || [],
+        lunch: data.lunch || [],
+        snacks: data.snacks || [],
+        dinner: data.dinner || [],
+      });
+    }
+  } catch (error) {
+    console.error('Error loading default menu:', error);
+  }
+};
   const fetchHistory = async () => {
   setHistoryLoading(true);
   setShowHistory(true);
