@@ -56,15 +56,22 @@ service cloud.firestore {
 
 
     // =========================================================
-    // DAILY STAPLES
+    // DAILY STAPLES & DEFAULT MENU
     // =========================================================
 
     match /dailyStaples/{documentId} {
-
       // Logged-in users can view Daily Staples.
       allow read: if isSignedIn();
 
       // Only admins can modify Daily Staples.
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /defaultMenu/{documentId} {
+      // Logged-in users can view Default Menu.
+      allow read: if isSignedIn();
+
+      // Only admins can modify Default Menu.
       allow create, update, delete: if isAdmin();
     }
 

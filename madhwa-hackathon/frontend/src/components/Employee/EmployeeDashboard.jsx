@@ -178,8 +178,16 @@ const EmployeeDashboard = () => {
 
   const loadStaples = async () => {
     try {
-      const ref = doc(db, 'dailyStaples', 'config');
-      const snap = await getDoc(ref);
+      let ref = doc(db, 'menus', 'default');
+      let snap = await getDoc(ref);
+      if (!snap.exists()) {
+        ref = doc(db, 'defaultMenu', 'config');
+        snap = await getDoc(ref);
+      }
+      if (!snap.exists()) {
+        ref = doc(db, 'dailyStaples', 'config');
+        snap = await getDoc(ref);
+      }
       if (snap.exists()) {
         const data = snap.data();
         setStaples({
@@ -190,7 +198,7 @@ const EmployeeDashboard = () => {
         });
       }
     } catch (error) {
-      console.error('Error loading daily staples:', error);
+      console.error('Error loading default menu:', error);
     }
   };
 
