@@ -14,9 +14,14 @@ import {
 } from 'firebase/auth';
 
 import {
-  doc,
-  getDoc
+  doc
 } from 'firebase/firestore';
+
+import {
+  getDocWithCache,
+  getCachedDocument,
+  docCacheKey
+} from '../utils/indexedDbCache';
 
 import {
   auth,
@@ -130,18 +135,31 @@ export const AuthProvider = ({ children }) => {
               );
 
 
-              const userDoc = await getDoc(userRef);
+              // Read the role from Firestore when online; when the network is
+              // unavailable, fall back to the locally cached role. Only the
+              // role is cached (users/<uid> is stored as { role } — no
+              // credentials or other sensitive data).
+              const userDoc =
+                await getDocWithCache(
+                  userRef,
+                  docCacheKey('users', user.uid),
+                  {
+                    sanitize: (data) => ({
+                      role: data.role
+                    })
+                  }
+                );
 
 
               console.log(
                 'Firestore document exists:',
-                userDoc.exists()
+                userDoc.exists
               );
 
 
-              if (userDoc.exists()) {
+              if (userDoc.exists) {
 
-                const userData = userDoc.data();
+                const userData = userDoc.data;
 
 
                 console.log(
@@ -252,12 +270,29 @@ export const AuthProvider = ({ children }) => {
               );
 
 
-              setUserRole(null);
+              // If Firestore is unreachable, use the cached role so an
+              // already signed-in user can still open the app offline.
+              const cached =
+                await getCachedDocument(
+                  docCacheKey('users', user.uid)
+                );
 
-              setError(
-                docError?.message ||
-                'Could not fetch user role.'
-              );
+              if (
+                cached &&
+                typeof cached.role === 'string'
+              ) {
+
+                setUserRole(cached.role);
+
+              } else {
+
+                setUserRole(null);
+
+                setError(
+                  docError?.message ||
+                  'Could not fetch user role.'
+                );
+              }
             }
 
 
