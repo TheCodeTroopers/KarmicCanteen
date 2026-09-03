@@ -1,0 +1,223 @@
+/* src/components/Common/PWAPrompt.css */
+
+.pwa-offline-banner {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  background: #e11d48;
+  color: #ffffff;
+  padding: 8px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  z-index: 99999;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  animation: slideDown 0.3s ease-out;
+}
+
+.pwa-toast {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  background: var(--bg-card, #1e293b);
+  color: var(--text-primary, #f8fafc);
+  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.12));
+  border-radius: 12px;
+  padding: 14px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4);
+  z-index: 99998;
+  max-width: 380px;
+  animation: slideUp 0.3s ease-out;
+}
+
+.pwa-toast-update {
+  border-left: 4px solid var(--accent-primary, #1a6dcc);
+}
+
+.pwa-toast-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.pwa-toast-content strong {
+  display: block;
+  font-size: 0.92rem;
+  margin-bottom: 2px;
+}
+
+.pwa-toast-content p {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--text-secondary, #94a3b8);
+}
+
+.pwa-icon-success {
+  color: #10b981;
+  flex-shrink: 0;
+}
+
+.pwa-icon-spin {
+  color: var(--accent-primary, #1a6dcc);
+  animation: spin 2s linear infinite;
+  flex-shrink: 0;
+}
+
+.pwa-toast-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pwa-install-banner {
+  position: fixed;
+  bottom: 24px;
+  left: 24px;
+  background: var(--bg-card, #1e293b);
+  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.15));
+  border-radius: 14px;
+  padding: 14px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  box-shadow: 0 12px 28px -4px rgba(0, 0, 0, 0.45);
+  z-index: 99998;
+  max-width: 420px;
+  animation: slideUp 0.35s ease-out;
+}
+
+.pwa-install-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.pwa-app-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
+  object-fit: cover;
+}
+
+.pwa-install-info strong {
+  display: block;
+  font-size: 0.95rem;
+  color: var(--text-primary, #ffffff);
+  margin-bottom: 2px;
+}
+
+.pwa-install-info p {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--text-secondary, #94a3b8);
+}
+
+.pwa-install-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pwa-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent-primary, #1a6dcc);
+  color: #ffffff;
+  border: none;
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.pwa-btn-primary:hover {
+  filter: brightness(1.1);
+  transform: translateY(-1px);
+}
+
+.pwa-btn-dismiss {
+  background: transparent;
+  color: var(--text-secondary, #94a3b8);
+  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.1));
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.pwa-btn-dismiss:hover {
+  background: var(--bg-hover, rgba(255, 255, 255, 0.05));
+  color: var(--text-primary, #ffffff);
+}
+
+.pwa-btn-close {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary, #94a3b8);
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  transition: all 0.2s;
+}
+
+.pwa-btn-close:hover {
+  background: var(--bg-hover, rgba(255, 255, 255, 0.08));
+  color: var(--text-primary, #ffffff);
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(30px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slideDown {
+  from {
+    transform: translateY(-30px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (max-width: 640px) {
+  .pwa-install-banner,
+  .pwa-toast {
+    left: 16px;
+    right: 16px;
+    max-width: calc(100% - 32px);
+  }
+}
