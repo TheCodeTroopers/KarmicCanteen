@@ -3,11 +3,9 @@ import React, { useState, useEffect } from 'react';
 import { collection, getDocs } from 'firebase/firestore';
 import { db } from '../../firebase/config';
 import { getLocalDateString } from '../../utils/dateUtils';
-import { useTranslation } from 'react-i18next';
 import './AnalyticsDashboard.css';
 
 const AnalyticsDashboard = () => {
-  const { t } = useTranslation();
   const [analytics, setAnalytics] = useState({
     totalEmployees: 0,
     todayParticipants: 0,
