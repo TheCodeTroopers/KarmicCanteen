@@ -6,6 +6,7 @@ import Login from './components/Auth/Login';
 import EmployeeDashboard from './components/Employee/EmployeeDashboard';
 import AdminDashboard from './components/Admin/AdminDashboard';
 import Navbar from './components/Layout/Navbar';
+import PWAPrompt from './components/Common/PWAPrompt';
 import './App.css';
 
 // Protected Route Component
@@ -54,6 +55,7 @@ function AppContent() {
   return (
     <Router>
       <div className="app">
+        <PWAPrompt />
         {currentUser && <Navbar />}
         
         <div className="main-content">
