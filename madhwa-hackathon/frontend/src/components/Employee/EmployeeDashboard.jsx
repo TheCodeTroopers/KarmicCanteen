@@ -4,7 +4,6 @@ import { doc, setDoc } from 'firebase/firestore';
 import { db } from '../../firebase/config';
 import { getDocWithCache, docCacheKey } from '../../utils/indexedDbCache';
 import { useAuth } from '../../context/AuthContext';
-import { useTranslation } from 'react-i18next';
 import { getLocalDateString } from '../../utils/dateUtils';
 import { 
   Lock, Clock, Building2, Bell, Calendar, Coffee, Soup, Cookie, ChefHat, 
@@ -27,7 +26,6 @@ const EMPTY_SELECTIONS = { breakfast: [], lunch: [], snacks: [], dinner: [] };
 
 const EmployeeDashboard = () => {
   const { currentUser } = useAuth();
-  const { t } = useTranslation();
   const [menu, setMenu] = useState(null);
   const [staples, setStaples] = useState(EMPTY_SELECTIONS);
   const [selections, setSelections] = useState(EMPTY_SELECTIONS);

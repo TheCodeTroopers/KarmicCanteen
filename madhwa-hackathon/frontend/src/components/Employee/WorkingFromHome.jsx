@@ -6,12 +6,9 @@
  */
 
 import React from 'react';
-import { useTranslation } from 'react-i18next';
 import './WorkingFromHome.css';
 
 const WorkingFromHome = ({ onChangeMode, canChange, deadline }) => {
-  const { t } = useTranslation();
-
   return (
     <div className="working-from-home">
       <div className="wfh-card">
@@ -20,23 +17,23 @@ const WorkingFromHome = ({ onChangeMode, canChange, deadline }) => {
           <div className="wfh-icon-bg"></div>
         </div>
 
-        <h1 className="wfh-title">{t('workingMode.wfhTitle')}</h1>
-        <p className="wfh-message">{t('workingMode.wfhMessage')}</p>
+        <h1 className="wfh-title">Working from Home Today</h1>
+        <p className="wfh-message">You have marked your status as Working from Home for today.</p>
 
         <div className="wfh-info-box">
           <div className="info-item">
             <span className="info-icon">📍</span>
             <div className="info-content">
-              <strong>{t('workingMode.location')}</strong>
-              <p>{t('workingMode.home')}</p>
+              <strong>Location</strong>
+              <p>Home</p>
             </div>
           </div>
 
           <div className="info-item">
             <span className="info-icon">🍽️</span>
             <div className="info-content">
-              <strong>{t('workingMode.mealStatus')}</strong>
-              <p>{t('workingMode.noMealNeeded')}</p>
+              <strong>Meal Status</strong>
+              <p>No meals booked</p>
             </div>
           </div>
 
@@ -44,7 +41,7 @@ const WorkingFromHome = ({ onChangeMode, canChange, deadline }) => {
             <div className="info-item">
               <span className="info-icon">⏰</span>
               <div className="info-content">
-                <strong>{t('workingMode.changeUntil')}</strong>
+                <strong>Can change mode until</strong>
                 <p>{deadline}</p>
               </div>
             </div>
@@ -57,33 +54,33 @@ const WorkingFromHome = ({ onChangeMode, canChange, deadline }) => {
               className="btn btn-primary btn-full"
               onClick={onChangeMode}
             >
-              {t('workingMode.changeToOffice')}
+              Change to Working from Office
             </button>
             <p className="wfh-help-text">
-              💡 {t('workingMode.canChangeHelp')}
+              💡 You can switch to office mode before the daily cut-off time.
             </p>
           </div>
         ) : (
           <div className="wfh-locked">
             <span className="lock-icon">🔒</span>
-            <p>{t('workingMode.cannotChange')}</p>
+            <p>The cut-off time to change your working mode has passed for today.</p>
           </div>
         )}
 
         <div className="wfh-tips">
-          <h3>{t('workingMode.tipsTitle')}</h3>
+          <h3>Remote Work Guidelines</h3>
           <ul>
             <li>
               <span className="tip-icon">✅</span>
-              {t('workingMode.tip1')}
+              Ensure you are connected to your team communication channels.
             </li>
             <li>
               <span className="tip-icon">✅</span>
-              {t('workingMode.tip2')}
+              Take regular breaks and stay hydrated during your workday.
             </li>
             <li>
               <span className="tip-icon">✅</span>
-              {t('workingMode.tip3')}
+              Update your task status before the end of the day.
             </li>
           </ul>
         </div>

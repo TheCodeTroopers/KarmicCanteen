@@ -6,11 +6,9 @@
  */
 
 import React, { useState } from 'react';
-import { useTranslation } from 'react-i18next';
 import './WorkingModeSelector.css';
 
 const WorkingModeSelector = ({ onModeSelect, currentMode, canChange }) => {
-  const { t } = useTranslation();
   const [selectedMode, setSelectedMode] = useState(currentMode || null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -39,8 +37,8 @@ const WorkingModeSelector = ({ onModeSelect, currentMode, canChange }) => {
       <div className="working-mode-modal">
         <div className="mode-header">
           <div className="mode-icon">🏢</div>
-          <h2>{t('workingMode.title')}</h2>
-          <p className="mode-subtitle">{t('workingMode.subtitle')}</p>
+          <h2>Select Working Mode</h2>
+          <p className="mode-subtitle">Please select where you will be working from today</p>
         </div>
 
         <div className="mode-options">
@@ -52,8 +50,8 @@ const WorkingModeSelector = ({ onModeSelect, currentMode, canChange }) => {
           >
             <div className="mode-option-icon">🏢</div>
             <div className="mode-option-content">
-              <h3>{t('workingMode.office')}</h3>
-              <p>{t('workingMode.officeDesc')}</p>
+              <h3>Working from Office</h3>
+              <p>You will be attending office and can select your canteen meals</p>
             </div>
             {selectedMode === 'office' && (
               <div className="mode-check">✓</div>
@@ -68,8 +66,8 @@ const WorkingModeSelector = ({ onModeSelect, currentMode, canChange }) => {
           >
             <div className="mode-option-icon">🏠</div>
             <div className="mode-option-content">
-              <h3>{t('workingMode.home')}</h3>
-              <p>{t('workingMode.homeDesc')}</p>
+              <h3>Working from Home</h3>
+              <p>You will be working remotely today (no meal ordering)</p>
             </div>
             {selectedMode === 'home' && (
               <div className="mode-check">✓</div>
@@ -80,7 +78,7 @@ const WorkingModeSelector = ({ onModeSelect, currentMode, canChange }) => {
         {!canChange && currentMode && (
           <div className="mode-warning">
             <span className="warning-icon">⚠️</span>
-            <p>{t('workingMode.deadlinePassed')}</p>
+            <p>The deadline to change your working mode has passed for today.</p>
           </div>
         )}
 
@@ -90,12 +88,12 @@ const WorkingModeSelector = ({ onModeSelect, currentMode, canChange }) => {
             onClick={handleSubmit}
             disabled={!selectedMode || isSubmitting || (!canChange && currentMode)}
           >
-            {isSubmitting ? t('common.loading') : t('workingMode.confirm')}
+            {isSubmitting ? 'Confirming...' : 'Confirm Working Mode'}
           </button>
           
           {canChange && currentMode && (
             <p className="mode-help-text">
-              💡 {t('workingMode.canChange')}
+              💡 You can update this mode before the morning cut-off time.
             </p>
           )}
         </div>
