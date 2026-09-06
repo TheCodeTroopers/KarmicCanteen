@@ -2,15 +2,12 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { useTranslation } from 'react-i18next';
 import { Crown, User } from 'lucide-react';
-import LanguageSwitcher from '../LanguageSwitcher/LanguageSwitcher';
 import './Navbar.css';
 
 const Navbar = () => {
   const { currentUser, logout, userRole } = useAuth();
   const navigate = useNavigate();
-  const { t } = useTranslation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const handleLogout = async () => {
@@ -38,17 +35,17 @@ const Navbar = () => {
             className="navbar-logo"
           />
           <div className="brand-text">
-            <h1>{t('common.appName')}</h1>
+            <h1>Karmic Canteen</h1>
             <span className={`role-badge ${userRole}`}>
               {userRole === 'admin' ? (
                 <>
                   <Crown size={14} style={{ marginRight: '4px', verticalAlign: 'middle' }} />
-                  {t('navbar.roleAdmin')}
+                  Admin
                 </>
               ) : (
                 <>
                   <User size={14} style={{ marginRight: '4px', verticalAlign: 'middle' }} />
-                  {t('navbar.roleEmployee')}
+                  Employee
                 </>
               )}
             </span>
@@ -75,18 +72,15 @@ const Navbar = () => {
             </span>
           </div>
           
-          {/* Language Switcher */}
-          <LanguageSwitcher />
-          
           <button
             onClick={() => {
               handleLogout();
               handleMenuItemClick();
             }}
             className="btn btn-secondary"
-            aria-label={t('auth.logout')}
+            aria-label="Log Out"
           >
-            {t('auth.logout')}
+            Log Out
           </button>
         </div>
       </div>

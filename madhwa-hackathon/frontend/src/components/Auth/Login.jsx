@@ -2,8 +2,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { useTranslation } from 'react-i18next';
-import LanguageSwitcher from '../LanguageSwitcher/LanguageSwitcher';
 import './Login.css';
 
 const Login = () => {
@@ -13,7 +11,6 @@ const Login = () => {
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
-  const { t } = useTranslation();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -34,27 +31,27 @@ const Login = () => {
       // User-friendly error messages
       switch (err.code) {
         case 'auth/user-not-found':
-          setError(t('auth.errors.userNotFound'));
+          setError('User not found. Please check your email.');
           break;
 
         case 'auth/wrong-password':
-          setError(t('auth.errors.wrongPassword'));
+          setError('Incorrect password. Please try again.');
           break;
 
         case 'auth/invalid-credential':
-          setError(t('auth.errors.invalidCredentials'));
+          setError('Invalid login credentials. Please check your email and password.');
           break;
 
         case 'auth/too-many-requests':
-          setError(t('auth.errors.tooManyAttempts'));
+          setError('Too many failed attempts. Please try again later.');
           break;
 
         case 'auth/network-request-failed':
-          setError(t('auth.errors.networkError'));
+          setError('Network error. Please check your internet connection.');
           break;
 
         default:
-          setError(t('auth.errors.loginFailed'));
+          setError('Login failed. Please try again.');
       }
     } finally {
       setLoading(false);
@@ -63,40 +60,35 @@ const Login = () => {
 
   return (
     <div className="login-container">
-      {/* Language Selector */}
-      <div className="login-language-selector">
-        <LanguageSwitcher />
-      </div>
-
       <div className="login-card">
         <div className="login-header">
           <img src="/logo.png" alt="Karmic Canteen Logo" className="login-logo" />
-          <h1>{t('common.appName')}</h1>
+          <h1>Karmic Canteen</h1>
         </div>
-        <p className="subtitle">{t('Good food good taste')}</p>
+        <p className="subtitle">Good food good taste</p>
         
         {error && <div className="error-message">{error}</div>}
         
         <form onSubmit={handleSubmit}>
           <div className="form-group">
-            <label>{t('auth.email')}</label>
+            <label>Email</label>
             <input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder={t('Your email')}
+              placeholder="Your email"
               required
               autoComplete="email"
             />
           </div>
           
           <div className="form-group">
-            <label>{t('auth.password')}</label>
+            <label>Password</label>
             <input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder={t('Your password')}
+              placeholder="Your password"
               required
               autoComplete="current-password"
             />
@@ -107,7 +99,7 @@ const Login = () => {
             className="btn btn-primary btn-full"
             disabled={loading}
           >
-            {loading ? t('Signing in') : t('Sign In')}
+            {loading ? 'Signing in...' : 'Sign In'}
           </button>
         </form>
 
@@ -115,7 +107,7 @@ const Login = () => {
         {process.env.NODE_ENV === 'development' && (
           <div className="test-credentials">
             <p style={{ fontSize: '12px', color: '#666', marginTop: '16px' }}>
-              {t('Test logins')}
+              Test logins
             </p>
             <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
               <button
@@ -127,7 +119,7 @@ const Login = () => {
                 }}
                 style={{ fontSize: '12px', padding: '6px 12px', flex: 1 }}
               >
-                {t('auth.employee')}
+                Employee
               </button>
               <button
                 type="button"
@@ -138,7 +130,7 @@ const Login = () => {
                 }}
                 style={{ fontSize: '12px', padding: '6px 12px', flex: 1 }}
               >
-                {t('auth.admin')}
+                Admin
               </button>
             </div>
           </div>

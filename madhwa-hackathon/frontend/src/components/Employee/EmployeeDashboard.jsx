@@ -4,7 +4,6 @@ import { doc, setDoc } from 'firebase/firestore';
 import { db } from '../../firebase/config';
 import { getDocWithCache, docCacheKey } from '../../utils/indexedDbCache';
 import { useAuth } from '../../context/AuthContext';
-import { useTranslation } from 'react-i18next';
 import { getLocalDateString } from '../../utils/dateUtils';
 import { 
   Lock, Clock, Building2, Bell, Calendar, Coffee, Soup, Cookie, ChefHat, 
@@ -27,7 +26,6 @@ const EMPTY_SELECTIONS = { breakfast: [], lunch: [], snacks: [], dinner: [] };
 
 const EmployeeDashboard = () => {
   const { currentUser } = useAuth();
-  const { t } = useTranslation();
   const [menu, setMenu] = useState(null);
   const [staples, setStaples] = useState(EMPTY_SELECTIONS);
   const [selections, setSelections] = useState(EMPTY_SELECTIONS);
@@ -537,9 +535,9 @@ const EmployeeDashboard = () => {
         <div>
           <h1 style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <ClipboardCheck size={28} style={{ color: 'var(--accent-primary)' }} />
-            {t('employee.dashboard.title')}
+            Employee Meal Selection
           </h1>
-          <p className="subtitle">{t('employee.dashboard.subtitle')}</p>
+          <p className="subtitle">Select your meals for tomorrow</p>
         </div>
       </div>
 
@@ -553,11 +551,11 @@ const EmployeeDashboard = () => {
       <div className="working-mode-indicator">
         <span className="mode-badge">
           <Building2 size={14} style={{ marginRight: '6px', verticalAlign: 'middle' }} />
-          {t('workingMode.office')}
+          Working from Office
         </span>
         {!deadlinePassed && (
           <button className="btn btn-secondary btn-sm" onClick={handleChangeModeClick}>
-            {t('workingMode.changeToOffice').replace('Office', 'Home')}
+            Change to Working from Home
           </button>
         )}
       </div>
@@ -569,15 +567,15 @@ const EmployeeDashboard = () => {
               <Bell size={20} style={{ color: 'var(--accent-primary)' }} />
             </div>
             <div className="notification-text">
-              <strong>{t('notifications.enable')}</strong>
-              <p>{t('notifications.enableReminders')}</p>
+              <strong>Enable Notifications</strong>
+              <p>Get daily meal selection reminders and updates</p>
             </div>
             <div className="notification-actions">
               <button className="btn btn-primary btn-sm" onClick={requestNotificationPermission}>
-                {t('notifications.enable')}
+                Enable
               </button>
               <button className="btn btn-secondary btn-sm" onClick={() => setShowNotificationBanner(false)}>
-                {t('notifications.maybeLater')}
+                Maybe Later
               </button>
             </div>
           </div>
@@ -599,7 +597,7 @@ const EmployeeDashboard = () => {
         <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '15px'}}>
           <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <Calendar size={20} style={{ color: 'var(--accent-primary)' }} />
-            {viewMode === 'daily' ? t('dashboard.selectMeals') + ' ' + formatDate(getTomorrowDate()) : 'Weekly Meal Selection'}
+            {viewMode === 'daily' ? 'Select Meals for ' + formatDate(getTomorrowDate()) : 'Weekly Meal Selection'}
           </h3>
           <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
             <div className="default-menu-toggle" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -652,9 +650,9 @@ const EmployeeDashboard = () => {
                 <span className="empty-icon">
                   <Utensils size={40} style={{ color: 'var(--text-tertiary)' }} />
                 </span>
-                <h3>{t('dashboard.noMenu')}</h3>
-                <p>{t('dashboard.noMenuText')}</p>
-                <p className="small-text">{t('dashboard.contactAdmin')}</p>
+                <h3>No Menu Available</h3>
+                <p>The menu for this date hasn't been set yet.</p>
+                <p className="small-text">Please check back later or contact the admin.</p>
               </div>
             </div>
           ) : (
@@ -672,7 +670,7 @@ const EmployeeDashboard = () => {
                             <Icon size={20} style={{ color: 'var(--accent-primary)' }} />
                           </div>
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                            <h3>{t(`dashboard.${key}`) === `dashboard.${key}` ? label : t(`dashboard.${key}`)}</h3>
+                            <h3>{label}</h3>
                             <div className="meal-timing">
                               <Clock size={12} style={{ marginRight: '4px', verticalAlign: 'middle' }} />
                               {mealTimings[key].start} - {mealTimings[key].end}
@@ -683,7 +681,7 @@ const EmployeeDashboard = () => {
                       </div>
 
                       {availableItems.length === 0 ? (
-                        <p className="no-items">{t('dashboard.noItems')}</p>
+                        <p className="no-items">No items available for this meal</p>
                       ) : (
                         <div className="item-chip-row">
                           {availableItems.map(item => {
@@ -719,18 +717,18 @@ const EmployeeDashboard = () => {
                 <div className="summary-card">
                   <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <ClipboardList size={20} style={{ color: 'var(--accent-primary)' }} />
-                    {t('dashboard.summary')}
+                    Order Summary
                   </h3>
                   <div className="summary-stats">
                     <div className="stat">
-                      <span className="stat-label">{t('dashboard.mealsSelected')}</span>
+                      <span className="stat-label">Meals Selected</span>
                       <span className="stat-value">{getSelectedCount()} items</span>
                     </div>
                     {savedSelections && (
                       <div className="stat">
-                        <span className="stat-label">{t('dashboard.status')}</span>
+                        <span className="stat-label">Status</span>
                         <span className={`stat-value ${hasChanges() ? 'warning' : 'success'}`}>
-                          {hasChanges() ? t('dashboard.unsavedChanges') : t('dashboard.saved')}
+                          {hasChanges() ? 'Unsaved Changes' : 'Saved'}
                         </span>
                       </div>
                     )}
@@ -741,12 +739,12 @@ const EmployeeDashboard = () => {
                     onClick={handleSubmit}
                     disabled={deadlinePassed || saving || !hasChanges() || offline}
                   >
-                    {saving ? t('auth.signingIn').replace('Signing', 'Saving') : hasChanges() ? t('dashboard.savePreferences') : t('dashboard.noChanges')}
+                    {saving ? 'Saving...' : hasChanges() ? 'Save Preferences' : 'No Changes'}
                   </button>
 
                   <p className="help-text" style={{ display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'center' }}>
                     <Info size={14} style={{ color: 'var(--accent-primary)' }} />
-                    <span>{t('dashboard.helpText', { time: formatDeadlineTime() })}</span>
+                    <span>Meal selection closes at {formatDeadlineTime()} daily.</span>
                   </p>
                 </div>
               </div>
@@ -769,10 +767,10 @@ const EmployeeDashboard = () => {
               </div>
             </div>
             <h2 className="popup-title">Success!</h2>
-            <p className="popup-message">{t('notifications.saved')}</p>
+            <p className="popup-message">Your meal selections have been saved successfully.</p>
             <div className="popup-details">
               <div className="selected-meals-summary">
-                <h3>{t('dashboard.mealsSelected')}</h3>
+                <h3>Meals Selected</h3>
                 <div className="meals-list">
                   {MEAL_TYPES.map(({ key, label, icon: Icon }) => (
                     selections[key]?.length > 0 && (
@@ -783,23 +781,23 @@ const EmployeeDashboard = () => {
                     )
                   ))}
                   {getSelectedCount() === 0 && (
-                    <p className="no-meals-selected">{t('dashboard.noItems')}</p>
+                    <p className="no-meals-selected">No items selected</p>
                   )}
                 </div>
               </div>
               <div className="popup-info">
                 <p style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <Check size={14} style={{ color: 'var(--success)' }} />
-                  {t('dashboard.saved')} {formatDate(getTomorrowDate())}
+                  Saved for {formatDate(getTomorrowDate())}
                 </p>
                 <p style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <Check size={14} style={{ color: 'var(--success)' }} />
-                  {t('dashboard.helpText', { time: formatDeadlineTime() })}
+                  Selection closes at {formatDeadlineTime()}
                 </p>
               </div>
             </div>
             <button className="btn btn-primary popup-close-btn" onClick={() => setShowSuccessPopup(false)}>
-              {t('buttons.done')}
+              Done
             </button>
           </div>
         </div>
