@@ -81,7 +81,7 @@
   color: #dc2626;
 }
 
-.role-badge.employee {
+.role-badge.student {
   background: rgba(26, 109, 204, 0.08);
   border-color: rgba(26, 109, 204, 0.15);
   color: var(--accent-primary);

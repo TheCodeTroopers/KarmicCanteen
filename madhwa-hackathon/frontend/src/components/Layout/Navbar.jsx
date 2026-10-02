@@ -45,7 +45,7 @@ const Navbar = () => {
               ) : (
                 <>
                   <User size={14} style={{ marginRight: '4px', verticalAlign: 'middle' }} />
-                  Employee
+                  Student
                 </>
               )}
             </span>

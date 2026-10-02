@@ -96,7 +96,7 @@ const AdminSettings = () => {
           <div className="section-header">
             <h3>📅 Daily Meal Selection Deadline</h3>
             <p className="section-description">
-              Set the time by which employees must submit their meal preferences for the next day.
+              Set the time by which students must submit their meal preferences for the next day.
               After this time, the selection form will be locked.
             </p>
           </div>
@@ -194,7 +194,7 @@ const AdminSettings = () => {
             <div className="info-content">
               <strong>How it works:</strong>
               <ul>
-                <li>Employees can select meals until the deadline time each day</li>
+                <li>Students can select meals until the deadline time each day</li>
                 <li>After the deadline, the selection form becomes read-only</li>
                 <li>The deadline applies to selections for the next day's meals</li>
                 <li>Changes to this setting take effect immediately</li>

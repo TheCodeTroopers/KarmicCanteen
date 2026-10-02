@@ -119,7 +119,7 @@ const Login = () => {
                 }}
                 style={{ fontSize: '12px', padding: '6px 12px', flex: 1 }}
               >
-                Employee
+                Student
               </button>
               <button
                 type="button"

@@ -7,7 +7,7 @@ import './AnalyticsDashboard.css';
 
 const AnalyticsDashboard = () => {
   const [analytics, setAnalytics] = useState({
-    totalEmployees: 0,
+    totalStudents: 0,
     todayParticipants: 0,
     totalMealsOrdered: 0,
     participationRate: 0,
@@ -36,10 +36,10 @@ const AnalyticsDashboard = () => {
       setLoading(true);
       const tomorrow = getTomorrowDate();
 
-      // Fetch total employees
+      // Fetch total students (matches student and employee role in Firestore)
       const usersSnapshot = await getDocs(collection(db, 'users'));
-      const employees = usersSnapshot.docs.filter(doc => doc.data().role === 'employee');
-      const totalEmployees = employees.length;
+      const students = usersSnapshot.docs.filter(doc => doc.data().role === 'student' || doc.data().role === 'employee');
+      const totalStudents = students.length;
 
       // Initialize counts
       let breakfastCount = 0;
@@ -74,12 +74,12 @@ const AnalyticsDashboard = () => {
 
       const todayParticipants = participatingUsers.size;
       const totalMealsOrdered = breakfastCount + lunchCount + snacksCount;
-      const participationRate = totalEmployees > 0 
-        ? ((todayParticipants / totalEmployees) * 100).toFixed(1)
+      const participationRate = totalStudents > 0 
+        ? ((todayParticipants / totalStudents) * 100).toFixed(1)
         : 0;
 
       setAnalytics({
-        totalEmployees,
+        totalStudents,
         todayParticipants,
         totalMealsOrdered,
         participationRate,
@@ -169,8 +169,8 @@ const AnalyticsDashboard = () => {
             <span style={{ color: '#0284c7' }}>👥</span>
           </div>
           <div className="stat-content">
-            <div className="stat-value">{analytics.totalEmployees}</div>
-            <div className="stat-label">Total Employees</div>
+            <div className="stat-value">{analytics.totalStudents}</div>
+            <div className="stat-label">Total Students</div>
           </div>
         </div>
 
@@ -208,7 +208,7 @@ const AnalyticsDashboard = () => {
           ></div>
         </div>
         <p className="participation-text">
-          {analytics.todayParticipants} of {analytics.totalEmployees} employees participating
+          {analytics.todayParticipants} of {analytics.totalStudents} students participating
         </p>
       </div>
 

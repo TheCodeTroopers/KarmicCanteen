@@ -105,7 +105,7 @@ const FestivalAnnouncements = () => {
     <div className="festival-announcements">
       <div className="announcements-header">
         <h2>📢 Festival & Event Announcements</h2>
-        <p className="subtitle">Send notifications to all employees</p>
+        <p className="subtitle">Send notifications to all students</p>
       </div>
 
       {statusMessage.text && (
@@ -151,7 +151,7 @@ const FestivalAnnouncements = () => {
         </button>
 
         <div className="info-box">
-          <strong>ℹ️ Note:</strong> This announcement will be saved and visible to all employees. 
+          <strong>ℹ️ Note:</strong> This announcement will be saved and visible to all students. 
           Users with notifications enabled will receive a browser notification.
         </div>
       </div>

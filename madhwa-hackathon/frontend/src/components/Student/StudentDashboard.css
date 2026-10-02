@@ -1,6 +1,6 @@
-/* Employee Dashboard - Premium Modern Design */
+/* Student Dashboard - Premium Modern Design */
 
-.employee-dashboard {
+.student-dashboard {
   width: 100%;
   margin: 0;
   padding: var(--space-md);
@@ -12,8 +12,8 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
- margin-bottom: var(--space-md);
-padding: var(--space-md) var(--space-lg);
+  margin-bottom: var(--space-md);
+  padding: var(--space-md) var(--space-lg);
   background: rgba(255, 255, 255, 0.85);
   backdrop-filter: blur(16px) saturate(180%);
   -webkit-backdrop-filter: blur(16px) saturate(180%);
@@ -126,8 +126,8 @@ padding: var(--space-md) var(--space-lg);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border-radius: var(--radius-lg);
-     padding: var(--space-md);
-    margin-bottom: var(--space-md);
+  padding: var(--space-md);
+  margin-bottom: var(--space-md);
   box-shadow: var(--shadow-md);
   border: 1px solid rgba(26, 109, 204, 0.1);
 }
@@ -182,7 +182,7 @@ padding: var(--space-md) var(--space-lg);
 .date-card {
   background: linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-deep, #0d4f9e) 100%);
   color: white;
-   padding: var(--space-md) var(--space-lg);
+  padding: var(--space-md) var(--space-lg);
   border-radius: var(--radius-lg);
   margin-bottom: var(--space-md);
   box-shadow: 0 4px 16px rgba(26, 109, 204, 0.25);
@@ -253,28 +253,6 @@ padding: var(--space-md) var(--space-lg);
   box-shadow: 0 2px 8px rgba(26, 109, 204, 0.3);
 }
 
-/* Working Mode Indicator */
-.working-mode-indicator {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-md);
-  padding: var(--space-sm) var(--space-md);
-  background: rgba(26, 109, 204, 0.04);
-  border: 1px solid rgba(26, 109, 204, 0.1);
-  border-radius: var(--radius-md);
-   margin-bottom: var(--space-md);
-}
-
-.mode-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-sm);
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-semibold);
-  color: var(--accent-primary);
-}
-
 /* No Menu State */
 .no-menu-card {
   background: rgba(255, 255, 255, 0.9);
@@ -320,10 +298,10 @@ padding: var(--space-md) var(--space-lg);
 
 /* Meals Grid */
 .meals-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-    gap: var(--space-md);
-    margin-bottom: var(--space-md);
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: var(--space-md);
+  margin-bottom: var(--space-md);
 }
 
 /* Meal Card - Premium Design */
@@ -391,7 +369,7 @@ padding: var(--space-md) var(--space-lg);
   display: flex;
   align-items: center;
   justify-content: space-between;
-   margin-bottom: var(--space-sm);
+  margin-bottom: var(--space-sm);
 }
 
 .meal-header > div:first-child,
@@ -403,8 +381,8 @@ padding: var(--space-md) var(--space-lg);
 
 .meal-icon {
   font-size: 28px;
-   width:44px;
-    height:44px;
+  width: 44px;
+  height: 44px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -460,8 +438,8 @@ padding: var(--space-md) var(--space-lg);
 
 /* Menu Items */
 .menu-items {
- min-height:70px;
-    margin-bottom:var(--space-md);
+  min-height: 70px;
+  margin-bottom: var(--space-md);
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -475,7 +453,7 @@ padding: var(--space-md) var(--space-lg);
   color: var(--text-secondary);
   line-height: 1.6;
   font-weight: var(--font-weight-medium);
-padding:3px 0;
+  padding: 3px 0;
   border-bottom: 1px solid rgba(0, 0, 0, 0.04);
 }
 
@@ -502,7 +480,7 @@ padding:3px 0;
 /* Meal Toggle Button */
 .meal-toggle-btn {
   width: 100%;
-padding:10px var(--space-md);
+  padding: 10px var(--space-md);
   border: 2px solid #e5e7eb;
   background: white;
   color: var(--text-primary);
@@ -542,8 +520,8 @@ padding:10px var(--space-md);
 
 /* Summary Section */
 .summary-section {
-    max-width: 700px;
-    margin: var(--space-md) auto 0;
+  max-width: 700px;
+  margin: var(--space-md) auto 0;
 }
 
 .summary-card {
@@ -552,14 +530,14 @@ padding:10px var(--space-md);
   -webkit-backdrop-filter: blur(12px);
   border: 1px solid rgba(26, 109, 204, 0.08);
   border-radius: var(--radius-lg);
-  padding:var(--space-lg);
+  padding: var(--space-lg);
   box-shadow: var(--shadow-md);
 }
 
 .summary-card h3 {
   font-family: var(--font-heading);
   font-size: var(--font-size-lg);
- margin-bottom:var(--space-md);
+  margin-bottom: var(--space-md);
   color: var(--text-primary);
   font-weight: var(--font-weight-bold);
   display: flex;
@@ -567,12 +545,11 @@ padding:10px var(--space-md);
   gap: 10px;
 }
 
-
 .summary-stats {
   display: flex;
   flex-direction: column;
-  gap:var(--space-sm);
-margin-bottom:var(--space-md);
+  gap: var(--space-sm);
+  margin-bottom: var(--space-md);
 }
 
 .stat {
@@ -612,8 +589,8 @@ margin-bottom:var(--space-md);
 }
 
 .save-btn {
-  padding:12px;
-margin-bottom:var(--space-md);
+  padding: 12px;
+  margin-bottom: var(--space-md);
   font-size: var(--font-size-sm);
   width: 100%;
   box-shadow: 0 4px 14px rgba(26, 109, 204, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.15);
@@ -861,12 +838,12 @@ margin-bottom:var(--space-md);
 
 /* ===== Responsive Design ===== */
 @media (max-width: 1024px) {
-.meals-grid {
+  .meals-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
     gap: var(--space-md);
     margin-bottom: var(--space-md);
-}
+  }
 
   .dashboard-header {
     flex-direction: column;
@@ -875,7 +852,7 @@ margin-bottom:var(--space-md);
 }
 
 @media (max-width: 768px) {
-  .employee-dashboard {
+  .student-dashboard {
     padding: var(--space-md);
   }
 
@@ -934,7 +911,7 @@ margin-bottom:var(--space-md);
 }
 
 @media (max-width: 480px) {
-  .employee-dashboard {
+  .student-dashboard {
     padding: var(--space-sm);
   }
 
@@ -1003,8 +980,8 @@ margin-bottom:var(--space-md);
   border-radius: var(--radius-sm);
   border-left: 3px solid #dc2626;
 }
-/* ===== Item-level meal selection (daily view) ===== */
 
+/* ===== Item-level meal selection (daily view) ===== */
 .meal-header {
   display: flex;
   justify-content: space-between;

@@ -3,7 +3,7 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import Login from './components/Auth/Login';
-import EmployeeDashboard from './components/Employee/EmployeeDashboard';
+import StudentDashboard from './components/Student/StudentDashboard';
 import AdminDashboard from './components/Admin/AdminDashboard';
 import Navbar from './components/Layout/Navbar';
 import PWAPrompt from './components/Common/PWAPrompt';
@@ -31,7 +31,7 @@ const ProtectedRoute = ({ children, requiredRole }) => {
     if (userRole === 'admin') {
       return <Navigate to="/admin" replace />;
     } else {
-      return <Navigate to="/employee" replace />;
+      return <Navigate to="/student" replace />;
     }
   }
 
@@ -69,7 +69,7 @@ function AppContent() {
                   userRole === 'admin' ? (
                     <Navigate to="/admin" replace />
                   ) : (
-                    <Navigate to="/employee" replace />
+                    <Navigate to="/student" replace />
                   )
                 ) : (
                   <Login />
@@ -85,18 +85,18 @@ function AppContent() {
                   {userRole === 'admin' ? (
                     <Navigate to="/admin" replace />
                   ) : (
-                    <Navigate to="/employee" replace />
+                    <Navigate to="/student" replace />
                   )}
                 </ProtectedRoute>
               }
             />
 
-            {/* Employee Routes - Only accessible by employees */}
+            {/* Student Routes - Only accessible by students */}
             <Route
-              path="/employee/*"
+              path="/student/*"
               element={
-                <ProtectedRoute requiredRole="employee">
-                  <EmployeeDashboard />
+                <ProtectedRoute requiredRole="student">
+                  <StudentDashboard />
                 </ProtectedRoute>
               }
             />
@@ -138,3 +138,4 @@ function App() {
 }
 
 export default App;
+
