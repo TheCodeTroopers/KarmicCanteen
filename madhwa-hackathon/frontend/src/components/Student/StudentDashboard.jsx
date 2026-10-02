@@ -1,4 +1,4 @@
-// src/components/Employee/EmployeeDashboard.jsx
+// src/components/Student/StudentDashboard.jsx
 import React, { useState, useEffect } from 'react';
 import { doc, setDoc } from 'firebase/firestore';
 import { db } from '../../firebase/config';
@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 import notificationService from '../../utils/notificationService';
 import WeeklyMealSelector from './WeeklyMealSelector';
-import './EmployeeDashboard.css';
+import './StudentDashboard.css';
 
 const MEAL_TYPES = [
   { key: 'breakfast', label: 'Breakfast', icon: Coffee },
@@ -22,7 +22,7 @@ const MEAL_TYPES = [
 
 const EMPTY_SELECTIONS = { breakfast: [], lunch: [], snacks: [], dinner: [] };
 
-const EmployeeDashboard = () => {
+const StudentDashboard = () => {
   const { currentUser } = useAuth();
   const [menu, setMenu] = useState(null);
   const [staples, setStaples] = useState(EMPTY_SELECTIONS);
@@ -65,7 +65,6 @@ const EmployeeDashboard = () => {
         console.log('Midnight detected - refreshing menu for new day');
         fetchTomorrowMenu();
         loadUserSelections();
-        loadWorkingMode();
       }
     }, 60000);
 
@@ -76,7 +75,7 @@ const EmployeeDashboard = () => {
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
     const dateStr = getLocalDateString(tomorrow);
-    console.log('Tomorrow date:', dateStr); // Debug log
+    console.log('Tomorrow date:', dateStr);
     return dateStr;
   };
 
@@ -130,23 +129,21 @@ const EmployeeDashboard = () => {
     deadline.setHours(deadlineHour, deadlineMinute, 0, 0);
 
     if (now > deadline) {
-      return t('dashboard.deadlinePassed');
+      return 'Deadline passed';
     }
 
     const diff = deadline - now;
     const hours = Math.floor(diff / (1000 * 60 * 60));
     const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
 
-    return t('dashboard.remaining', { hours, minutes });
+    return `${hours}h ${minutes}m remaining`;
   };
 
   const fetchTomorrowMenu = async () => {
     try {
       const tomorrow = getTomorrowDate();
-     const today = getLocalDateString();
+      const today = getLocalDateString();
       
-      // First try to get tomorrow's menu (fresh from Firestore when online,
-      // latest cached copy when offline)
       const menuRef = doc(db, 'menus', tomorrow);
       const { data: menuData, exists, fromCache } = await getDocWithCache(
         menuRef,
@@ -185,59 +182,58 @@ const EmployeeDashboard = () => {
   };
 
   const loadStaples = async () => {
-  try {
-    let ref = doc(db, 'menus', 'default');
-    let data;
-    let exists = false;
-    let fromCache = false;
+    try {
+      let ref = doc(db, 'menus', 'default');
+      let data;
+      let exists = false;
+      let fromCache = false;
 
-    // Try menus/default first
-    ({ data, exists, fromCache } = await getDocWithCache(
-      ref,
-      docCacheKey('menus', 'default')
-    ));
-
-    if (fromCache) setOffline(true);
-
-    // Try defaultMenu/config if menus/default doesn't exist
-    if (!exists) {
-      ref = doc(db, 'defaultMenu', 'config');
-
+      // Try menus/default first
       ({ data, exists, fromCache } = await getDocWithCache(
         ref,
-        docCacheKey('defaultMenu', 'config')
+        docCacheKey('menus', 'default')
       ));
 
       if (fromCache) setOffline(true);
+
+      // Try defaultMenu/config if menus/default doesn't exist
+      if (!exists) {
+        ref = doc(db, 'defaultMenu', 'config');
+
+        ({ data, exists, fromCache } = await getDocWithCache(
+          ref,
+          docCacheKey('defaultMenu', 'config')
+        ));
+
+        if (fromCache) setOffline(true);
+      }
+
+      // Try dailyStaples/config as final fallback
+      if (!exists) {
+        ref = doc(db, 'dailyStaples', 'config');
+
+        ({ data, exists, fromCache } = await getDocWithCache(
+          ref,
+          docCacheKey('dailyStaples', 'config')
+        ));
+
+        if (fromCache) setOffline(true);
+      }
+
+      if (exists) {
+        setStaples({
+          breakfast: data.breakfast || [],
+          lunch: data.lunch || [],
+          snacks: data.snacks || [],
+          dinner: data.dinner || [],
+        });
+      }
+    } catch (error) {
+      console.error('Error loading default menu:', error);
     }
-
-    // Try dailyStaples/config as final fallback
-    if (!exists) {
-      ref = doc(db, 'dailyStaples', 'config');
-
-      ({ data, exists, fromCache } = await getDocWithCache(
-        ref,
-        docCacheKey('dailyStaples', 'config')
-      ));
-
-      if (fromCache) setOffline(true);
-    }
-
-    if (exists) {
-      setStaples({
-        breakfast: data.breakfast || [],
-        lunch: data.lunch || [],
-        snacks: data.snacks || [],
-        dinner: data.dinner || [],
-      });
-    }
-  } catch (error) {
-    console.error('Error loading default menu:', error);
-  }
-};
+  };
 
   // Normalize menu/staple items while preserving quantity and availability.
-  // Selections remain item names for compatibility with mealSelections.
   const normalizeMenuItem = (item) => {
     if (typeof item === 'string') return { name: item.trim(), available: true, quantity: null };
     if (item && typeof item === 'object') {
@@ -304,7 +300,6 @@ const EmployeeDashboard = () => {
     }
   };
 
-  // Toggle one specific item within a meal type (item-level selection).
   const handleItemToggle = (mealType, itemName) => {
     const alreadySelected = selections[mealType]?.includes(itemName);
 
@@ -355,7 +350,7 @@ const EmployeeDashboard = () => {
     if (granted) {
       setShowNotificationBanner(false);
       scheduleMorningReminder();
-      showMessage('success', t('notifications.enableReminders'));
+      showMessage('success', 'Reminders enabled successfully!');
     } else {
       showMessage('error', 'Notification permission denied. You can enable it in browser settings.');
     }
@@ -452,12 +447,12 @@ const EmployeeDashboard = () => {
   }
 
   return (
-    <div className="employee-dashboard">
+    <div className="student-dashboard">
       <div className="dashboard-header">
         <div>
           <h1 style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <ClipboardCheck size={28} style={{ color: 'var(--accent-primary)' }} />
-            Employee Meal Selection
+            Student Meal Selection
           </h1>
           <p className="subtitle">Select your meals for tomorrow</p>
         </div>
@@ -754,4 +749,4 @@ const EmployeeDashboard = () => {
   );
 };
 
-export default EmployeeDashboard;
+export default StudentDashboard;
