@@ -6,12 +6,10 @@ import { getDocWithCache, docCacheKey } from '../../utils/indexedDbCache';
 import { useAuth } from '../../context/AuthContext';
 import { getLocalDateString } from '../../utils/dateUtils';
 import { 
-  Lock, Clock, Building2, Bell, Calendar, Coffee, Soup, Cookie, ChefHat, 
+  Lock, Clock, Bell, Calendar, Coffee, Soup, Cookie, ChefHat, 
   Info, CheckCircle2, AlertTriangle, Utensils, Check, ClipboardCheck, ClipboardList
 } from 'lucide-react';
 import notificationService from '../../utils/notificationService';
-import WorkingModeSelector from './WorkingModeSelector';
-import WorkingFromHome from './WorkingFromHome';
 import WeeklyMealSelector from './WeeklyMealSelector';
 import './EmployeeDashboard.css';
 
@@ -41,8 +39,6 @@ const EmployeeDashboard = () => {
   const [showNotificationBanner, setShowNotificationBanner] = useState(false);
   const [reminderScheduled, setReminderScheduled] = useState(false);
   const [showSuccessPopup, setShowSuccessPopup] = useState(false);
-  const [workingMode, setWorkingMode] = useState(null); // 'office' or 'home'
-  const [showModeSelector, setShowModeSelector] = useState(false);
   const [showDeadlineWarning, setShowDeadlineWarning] = useState(false);
   const [warningShown, setWarningShown] = useState(false);
   const [viewMode, setViewMode] = useState('daily'); // 'daily' or 'weekly'
@@ -54,7 +50,6 @@ const EmployeeDashboard = () => {
     fetchTomorrowMenu();
     loadStaples();
     loadUserSelections();
-    loadWorkingMode();
     initializeNotifications();
   }, []);
 
@@ -309,65 +304,12 @@ const EmployeeDashboard = () => {
     }
   };
 
-  const loadWorkingMode = async () => {
-    try {
-      const tomorrow = getTomorrowDate();
-      const modeRef = doc(db, 'workingModes', tomorrow, 'users', currentUser.uid);
-      const { data, exists, fromCache } = await getDocWithCache(
-        modeRef,
-        docCacheKey('workingModes', tomorrow, 'users', currentUser.uid)
-      );
-
-      if (fromCache) setOffline(true);
-
-      if (exists) {
-        setWorkingMode(data.mode);
-      } else {
-        setShowModeSelector(true);
-      }
-    } catch (error) {
-      console.error('Error loading working mode:', error);
-      setShowModeSelector(true);
-    }
-  };
-
-  const handleModeSelect = async (mode) => {
-    try {
-      const tomorrow = getTomorrowDate();
-      const modeRef = doc(db, 'workingModes', tomorrow, 'users', currentUser.uid);
-
-      await setDoc(modeRef, {
-        mode: mode,
-        userId: currentUser.uid,
-        userEmail: currentUser.email,
-        timestamp: new Date().toISOString(),
-        date: tomorrow
-      });
-
-      setWorkingMode(mode);
-      setShowModeSelector(false);
-
-      if (mode === 'office') {
-        showMessage('success', 'Working mode set to Office. You can now select your meals.');
-      }
-    } catch (error) {
-      console.error('Error saving working mode:', error);
-      showMessage('error', 'Failed to save working mode. Please try again.');
-    }
-  };
-
-  const handleChangeModeClick = () => {
-    if (!deadlinePassed && !offline) {
-      setShowModeSelector(true);
-    }
-  };
-
   // Toggle one specific item within a meal type (item-level selection).
   const handleItemToggle = (mealType, itemName) => {
     const alreadySelected = selections[mealType]?.includes(itemName);
 
     if (deadlinePassed && !alreadySelected) {
-      showMessage('error', t('dashboard.deadlinePassed'));
+      showMessage('error', 'The deadline to select meals for tomorrow has passed.');
       return;
     }
 
@@ -509,26 +451,6 @@ const EmployeeDashboard = () => {
     );
   }
 
-  if (showModeSelector) {
-    return (
-      <WorkingModeSelector
-        onModeSelect={handleModeSelect}
-        currentMode={workingMode}
-        canChange={!deadlinePassed}
-      />
-    );
-  }
-
-  if (workingMode === 'home') {
-    return (
-      <WorkingFromHome
-        onChangeMode={handleChangeModeClick}
-        canChange={!deadlinePassed}
-        deadline={formatDeadlineTime()}
-      />
-    );
-  }
-
   return (
     <div className="employee-dashboard">
       <div className="dashboard-header">
@@ -547,18 +469,6 @@ const EmployeeDashboard = () => {
           You're offline — showing the last saved data. Changes can't be synced until you're back online.
         </div>
       )}
-
-      <div className="working-mode-indicator">
-        <span className="mode-badge">
-          <Building2 size={14} style={{ marginRight: '6px', verticalAlign: 'middle' }} />
-          Working from Office
-        </span>
-        {!deadlinePassed && (
-          <button className="btn btn-secondary btn-sm" onClick={handleChangeModeClick}>
-            Change to Working from Home
-          </button>
-        )}
-      </div>
 
       {showNotificationBanner && (
         <div className="notification-banner">

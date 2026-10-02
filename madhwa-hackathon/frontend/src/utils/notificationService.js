@@ -77,8 +77,7 @@ class NotificationService {
    * Check if user is working from office
    */
   isWorkingFromOffice() {
-    const workingMode = localStorage.getItem('workingMode');
-    return workingMode === 'office';
+    return true;
   }
 
   /**
