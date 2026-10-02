@@ -184,9 +184,12 @@ export const AuthProvider = ({ children }) => {
                   typeof role === 'string'
                 ) {
 
-                  const normalizedRole =
+                  let normalizedRole =
                     role.trim().toLowerCase();
 
+                  if (normalizedRole === 'employee') {
+                    normalizedRole = 'student';
+                  }
 
                   console.log(
                     'Normalized role:',
@@ -282,7 +285,11 @@ export const AuthProvider = ({ children }) => {
                 typeof cached.role === 'string'
               ) {
 
-                setUserRole(cached.role);
+                let cachedRole = cached.role.trim().toLowerCase();
+                if (cachedRole === 'employee') {
+                  cachedRole = 'student';
+                }
+                setUserRole(cachedRole);
 
               } else {
 
