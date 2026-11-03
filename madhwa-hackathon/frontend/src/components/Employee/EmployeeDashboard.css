@@ -1,6 +1,6 @@
-/* Student Dashboard - Premium Modern Design */
+/* Employee Dashboard - Premium Modern Design */
 
-.student-dashboard {
+.employee-dashboard {
   width: 100%;
   margin: 0;
   padding: var(--space-md);
@@ -852,7 +852,7 @@
 }
 
 @media (max-width: 768px) {
-  .student-dashboard {
+  .employee-dashboard {
     padding: var(--space-md);
   }
 
@@ -911,7 +911,7 @@
 }
 
 @media (max-width: 480px) {
-  .student-dashboard {
+  .employee-dashboard {
     padding: var(--space-sm);
   }
 

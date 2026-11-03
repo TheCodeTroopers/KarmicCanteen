@@ -1,4 +1,4 @@
-// src/components/Student/WeeklyMealSelector.jsx
+// src/components/Employee/WeeklyMealSelector.jsx
 import React, { useState, useEffect } from 'react';
 import { doc, setDoc } from 'firebase/firestore';
 import { db } from '../../firebase/config';

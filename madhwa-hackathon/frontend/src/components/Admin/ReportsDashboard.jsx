@@ -16,7 +16,7 @@ const ReportsDashboard = () => {
   const [menu, setMenu] = useState(null);
 
   useEffect(() => {
-    // Set tomorrow as default (since students select for tomorrow)
+    // Set tomorrow as default (since employees select for tomorrow)
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
    setSelectedDate(getLocalDateString(tomorrow));

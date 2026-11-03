@@ -187,8 +187,8 @@ export const AuthProvider = ({ children }) => {
                   let normalizedRole =
                     role.trim().toLowerCase();
 
-                  if (normalizedRole === 'employee') {
-                    normalizedRole = 'student';
+                  if (normalizedRole === 'student') {
+                    normalizedRole = 'employee';
                   }
 
                   console.log(
@@ -286,8 +286,8 @@ export const AuthProvider = ({ children }) => {
               ) {
 
                 let cachedRole = cached.role.trim().toLowerCase();
-                if (cachedRole === 'employee') {
-                  cachedRole = 'student';
+                if (cachedRole === 'student') {
+                  cachedRole = 'employee';
                 }
                 setUserRole(cachedRole);
 
