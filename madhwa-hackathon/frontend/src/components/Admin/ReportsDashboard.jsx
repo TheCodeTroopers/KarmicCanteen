@@ -111,6 +111,9 @@ const ReportsDashboard = () => {
              const lunchItems = Array.isArray(data.lunch) ? data.lunch : [];
              const snacksItems = Array.isArray(data.snacks) ? data.snacks : [];
 
+             // Skip documents with no items (e.g. a day cleared in the weekly view)
+             if (breakfastItems.length + lunchItems.length + snacksItems.length === 0) return;
+
              if (breakfastItems.length > 0) counts.breakfast++;
              if (lunchItems.length > 0) counts.lunch++;
              if (snacksItems.length > 0) counts.snacks++;

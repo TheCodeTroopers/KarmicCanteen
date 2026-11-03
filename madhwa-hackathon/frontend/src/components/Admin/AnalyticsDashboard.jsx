@@ -52,17 +52,20 @@ const AnalyticsDashboard = () => {
         const selectionsPath = collection(db, 'mealSelections', tomorrow, 'users');
         const selectionsSnapshot = await getDocs(selectionsPath);
         
+        // Empty item lists are not a selection (the weekly view can save empty days)
+        const hasSelection = (value) => (Array.isArray(value) ? value.length > 0 : Boolean(value));
+
         selectionsSnapshot.docs.forEach(doc => {
           const data = doc.data();
-          if (data.breakfast) {
+          if (hasSelection(data.breakfast)) {
             breakfastCount++;
             participatingUsers.add(doc.id);
           }
-          if (data.lunch) {
+          if (hasSelection(data.lunch)) {
             lunchCount++;
             participatingUsers.add(doc.id);
           }
-          if (data.snacks) {
+          if (hasSelection(data.snacks)) {
             snacksCount++;
             participatingUsers.add(doc.id);
           }

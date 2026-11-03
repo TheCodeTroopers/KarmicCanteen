@@ -99,8 +99,8 @@ const EmployeeDashboard = () => {
       );
       if (fromCache) setOffline(true);
       if (exists) {
-        setDeadlineHour(data.deadlineHour || 21);
-        setDeadlineMinute(data.deadlineMinute || 0);
+        setDeadlineHour(data.deadlineHour ?? 21);
+        setDeadlineMinute(data.deadlineMinute ?? 0);
       }
     } catch (error) {
       console.error('Error fetching deadline settings:', error);
