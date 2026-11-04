@@ -336,7 +336,7 @@ const DefaultMenuManager = () => {
               ) : (
                 menuItems[key].map((item, index) => (
                   <div key={index} className="item-row">
-                    <span className="item-name">{item.name}</span>
+                    <span className="item-name" title={item.name}>{item.name}</span>
 
                     <div className="item-controls">
                       <label className="availability-toggle">
@@ -383,3 +383,4 @@ const DefaultMenuManager = () => {
 };
 
 export default DefaultMenuManager;
+
