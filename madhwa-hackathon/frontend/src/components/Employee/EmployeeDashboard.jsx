@@ -454,7 +454,19 @@ const EmployeeDashboard = () => {
             <ClipboardCheck size={28} style={{ color: 'var(--accent-primary)' }} />
             Employee Meal Selection
           </h1>
-          <p className="subtitle">Select your meals for tomorrow</p>
+          <p className="subtitle">Pre-order meal preferences in advance for canteen kitchen preparation</p>
+        </div>
+        <div className="dashboard-header-right" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '6px' }}>
+          <div style={{ fontSize: '13px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <Calendar size={14} style={{ color: 'var(--accent-primary)' }} />
+            <span><strong>Today:</strong> {formatDate(getLocalDateString())}</span>
+          </div>
+          <div className="deadline-info">
+            <span className={`deadline-badge ${deadlinePassed ? 'expired' : 'active'}`} style={{ fontSize: '12px', padding: '4px 12px' }}>
+              <Clock size={13} />
+              {deadlinePassed ? 'Deadline Passed' : `${getTimeUntilDeadline()}`}
+            </span>
+          </div>
         </div>
       </div>
 
@@ -500,10 +512,21 @@ const EmployeeDashboard = () => {
 
       <div className="date-card">
         <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '15px'}}>
-          <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Calendar size={20} style={{ color: 'var(--accent-primary)' }} />
-            {viewMode === 'daily' ? 'Select Meals for ' + formatDate(getTomorrowDate()) : 'Weekly Meal Selection'}
-          </h3>
+          <div>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: 'rgba(255, 255, 255, 0.18)', padding: '2px 10px', borderRadius: '12px', fontSize: '11px', fontWeight: '700', letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: '6px' }}>
+              <span>{viewMode === 'daily' ? 'PRE-ORDER FOR TOMORROW' : 'UPCOMING WEEK'}</span>
+            </div>
+            <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
+              <Calendar size={22} style={{ color: 'white' }} />
+              {viewMode === 'daily' ? formatDate(getTomorrowDate()) : 'Weekly Meal Selection'}
+            </h3>
+            {viewMode === 'daily' && (
+              <p style={{ margin: '4px 0 0 0', fontSize: '13px', opacity: 0.9, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Info size={14} />
+                <span>Orders close at {formatDeadlineTime()} today ({formatDate(getLocalDateString())})</span>
+              </p>
+            )}
+          </div>
           <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
             <div className="default-menu-toggle" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <label htmlFor="showDefaultMenu" style={{ fontSize: '13px', fontWeight: '600', color: 'white', cursor: 'pointer' }}>
