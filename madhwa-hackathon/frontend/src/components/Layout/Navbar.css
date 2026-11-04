@@ -81,7 +81,8 @@
   color: #dc2626;
 }
 
-.role-badge.student {
+.role-badge.student,
+.role-badge.employee {
   background: rgba(26, 109, 204, 0.08);
   border-color: rgba(26, 109, 204, 0.15);
   color: var(--accent-primary);
@@ -212,3 +213,4 @@
     display: none;
   }
 }
+
