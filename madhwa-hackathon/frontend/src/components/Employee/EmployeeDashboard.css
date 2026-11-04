@@ -1,6 +1,6 @@
-/* Student Dashboard - Premium Modern Design */
+/* Employee Dashboard - Premium Modern Design */
 
-.student-dashboard {
+.employee-dashboard {
   width: 100%;
   margin: 0;
   padding: var(--space-md);
@@ -231,9 +231,9 @@
 
 .toggle-btn {
   padding: 8px 20px;
-  border: none;
-  background: transparent;
-  color: var(--text-secondary);
+  border: 1px solid rgba(26, 109, 204, 0.25);
+  background: rgba(255, 255, 255, 0.9);
+  color: var(--accent-primary);
   font-size: var(--font-size-sm);
   font-weight: var(--font-weight-semibold);
   border-radius: var(--radius-sm);
@@ -249,6 +249,7 @@
 
 .toggle-btn.active {
   background: var(--accent-primary);
+  border-color: var(--accent-primary);
   color: white;
   box-shadow: 0 2px 8px rgba(26, 109, 204, 0.3);
 }
@@ -852,7 +853,7 @@
 }
 
 @media (max-width: 768px) {
-  .student-dashboard {
+  .employee-dashboard {
     padding: var(--space-md);
   }
 
@@ -911,7 +912,7 @@
 }
 
 @media (max-width: 480px) {
-  .student-dashboard {
+  .employee-dashboard {
     padding: var(--space-sm);
   }
 

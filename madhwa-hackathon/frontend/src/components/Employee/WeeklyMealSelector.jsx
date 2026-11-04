@@ -1,4 +1,4 @@
-// src/components/Student/WeeklyMealSelector.jsx
+// src/components/Employee/WeeklyMealSelector.jsx
 import React, { useState, useEffect } from 'react';
 import { doc, setDoc } from 'firebase/firestore';
 import { db } from '../../firebase/config';
@@ -40,6 +40,9 @@ const WeeklyMealSelector = ({ showDefaultMenu, setShowDefaultMenu }) => {
   const [historyData, setHistoryData] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [offline, setOffline] = useState(false); // True when data was served from IndexedDB cache
+  const [deadlineHour, setDeadlineHour] = useState(21);
+  const [deadlineMinute, setDeadlineMinute] = useState(0);
+  const [savedDates, setSavedDates] = useState(new Set()); // Days that already have a selection document
 
   useEffect(() => {
     initializeWeek();
@@ -83,9 +86,34 @@ const WeeklyMealSelector = ({ showDefaultMenu, setShowDefaultMenu }) => {
 
     setWeeklySelections(initialSelections);
 
+    await fetchDeadlineSettings();
     await loadStaples();
     await loadWeeklyData(days);
     setLoading(false);
+  };
+
+  // Use the same admin-configured deadline as the daily view.
+  const fetchDeadlineSettings = async () => {
+    try {
+      const settingsRef = doc(db, 'settings', 'deadline');
+      const { data, exists, fromCache } = await getDocWithCache(
+        settingsRef,
+        docCacheKey('settings', 'deadline')
+      );
+      if (fromCache) setOffline(true);
+      if (exists) {
+        setDeadlineHour(data.deadlineHour ?? 21);
+        setDeadlineMinute(data.deadlineMinute ?? 0);
+      }
+    } catch (error) {
+      console.error('Error fetching deadline settings:', error);
+    }
+  };
+
+  const formatDeadlineTime = () => {
+    const period = deadlineHour >= 12 ? 'PM' : 'AM';
+    const displayHour = deadlineHour % 12 === 0 ? 12 : deadlineHour % 12;
+    return `${displayHour}:${String(deadlineMinute).padStart(2, '0')} ${period}`;
   };
 
   const loadStaples = async () => {
@@ -222,6 +250,7 @@ const WeeklyMealSelector = ({ showDefaultMenu, setShowDefaultMenu }) => {
 
       setWeeklyMenus(menusData);
       setWeeklySelections(prev => ({ ...prev, ...selectionsData }));
+      setSavedDates(new Set(Object.keys(selectionsData)));
     } catch (error) {
       console.error('Error loading weekly data:', error);
       showMessage('error', 'Failed to load weekly data');
@@ -268,8 +297,8 @@ const WeeklyMealSelector = ({ showDefaultMenu, setShowDefaultMenu }) => {
     const now = new Date();
     const cutoff = new Date(mealDate);
     cutoff.setDate(mealDate.getDate() - 1);
-    cutoff.setHours(12, 30, 0, 0);
-    return now <= cutoff;
+    cutoff.setHours(deadlineHour, deadlineMinute, 0, 0);
+    return now < cutoff;
   };
 
   const handleItemToggle = (dateStr, mealType, itemName) => {
@@ -282,7 +311,7 @@ const WeeklyMealSelector = ({ showDefaultMenu, setShowDefaultMenu }) => {
       const mealDate = new Date(dateStr + 'T00:00:00');
       const cutoff = new Date(mealDate);
       cutoff.setDate(mealDate.getDate() - 1);
-      showMessage('error', `Deadline passed! You can only add items before 12:30 PM on ${cutoff.toLocaleDateString()}`);
+      showMessage('error', `Deadline passed! You can only add items before ${formatDeadlineTime()} on ${cutoff.toLocaleDateString()}`);
       return;
     }
 
@@ -309,22 +338,28 @@ const WeeklyMealSelector = ({ showDefaultMenu, setShowDefaultMenu }) => {
       showMessage('info', 'Saving weekly selections...');
 
       let savedCount = 0;
+      const nextSavedDates = new Set(savedDates);
       for (const day of weekDays) {
         const dateStr = day.date;
         const selections = weeklySelections[dateStr];
+        if (!selections) continue;
 
-        if (selections) {
-          const selectionRef = doc(db, 'mealSelections', dateStr, 'users', currentUser.uid);
-          await setDoc(selectionRef, {
-            ...selections,
-            date: dateStr,
-            userId: currentUser.uid,
-            userEmail: currentUser.email,
-            timestamp: new Date().toISOString()
-          });
-          savedCount++;
-        }
+        // Skip empty days that were never saved, so they don't show up as participants.
+        const hasAnyItems = MEAL_TYPES.some(m => (selections[m.key] || []).length > 0);
+        if (!hasAnyItems && !savedDates.has(dateStr)) continue;
+
+        const selectionRef = doc(db, 'mealSelections', dateStr, 'users', currentUser.uid);
+        await setDoc(selectionRef, {
+          ...selections,
+          date: dateStr,
+          userId: currentUser.uid,
+          email: currentUser.email,
+          timestamp: new Date().toISOString()
+        });
+        nextSavedDates.add(dateStr);
+        savedCount++;
       }
+      setSavedDates(nextSavedDates);
 
       showMessage('success', `✓ Saved selections for ${savedCount} days!`);
     } catch (error) {
@@ -389,7 +424,7 @@ const WeeklyMealSelector = ({ showDefaultMenu, setShowDefaultMenu }) => {
         <p className="subtitle">Pick exactly what you want for the next 7 days</p>
         <div className="deadline-notice" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
           <Clock size={14} style={{ color: 'var(--accent-primary)' }} />
-          <span><strong>Important:</strong> You can add items until 12:30 PM of the previous day. Removing items is always allowed.</span>
+          <span><strong>Important:</strong> You can add items until {formatDeadlineTime()} of the previous day. Removing items is always allowed.</span>
         </div>
       </div>
 

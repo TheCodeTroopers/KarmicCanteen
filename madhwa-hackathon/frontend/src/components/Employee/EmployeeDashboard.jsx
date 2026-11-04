@@ -1,4 +1,4 @@
-// src/components/Student/StudentDashboard.jsx
+// src/components/Employee/EmployeeDashboard.jsx
 import React, { useState, useEffect } from 'react';
 import { doc, setDoc } from 'firebase/firestore';
 import { db } from '../../firebase/config';
@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 import notificationService from '../../utils/notificationService';
 import WeeklyMealSelector from './WeeklyMealSelector';
-import './StudentDashboard.css';
+import './EmployeeDashboard.css';
 
 const MEAL_TYPES = [
   { key: 'breakfast', label: 'Breakfast', icon: Coffee },
@@ -22,7 +22,7 @@ const MEAL_TYPES = [
 
 const EMPTY_SELECTIONS = { breakfast: [], lunch: [], snacks: [], dinner: [] };
 
-const StudentDashboard = () => {
+const EmployeeDashboard = () => {
   const { currentUser } = useAuth();
   const [menu, setMenu] = useState(null);
   const [staples, setStaples] = useState(EMPTY_SELECTIONS);
@@ -99,8 +99,8 @@ const StudentDashboard = () => {
       );
       if (fromCache) setOffline(true);
       if (exists) {
-        setDeadlineHour(data.deadlineHour || 21);
-        setDeadlineMinute(data.deadlineMinute || 0);
+        setDeadlineHour(data.deadlineHour ?? 21);
+        setDeadlineMinute(data.deadlineMinute ?? 0);
       }
     } catch (error) {
       console.error('Error fetching deadline settings:', error);
@@ -447,7 +447,7 @@ const StudentDashboard = () => {
   }
 
   return (
-    <div className="student-dashboard">
+    <div className="employee-dashboard">
       <div className="dashboard-header">
         <div>
           <h1 style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -749,5 +749,5 @@ const StudentDashboard = () => {
   );
 };
 
-export default StudentDashboard;
+export default EmployeeDashboard;
 

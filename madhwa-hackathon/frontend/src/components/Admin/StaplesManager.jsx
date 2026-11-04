@@ -3,7 +3,7 @@
 // Manages "Daily Staples" — items that appear every day.
 // Each staple has:
 //   name       -> item name
-//   available  -> whether students can order it
+//   available  -> whether employees can order it
 //   quantity   -> optional daily quantity limit
 //
 // quantity = null means quantity is not being tracked.

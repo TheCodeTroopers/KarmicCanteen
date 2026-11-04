@@ -16,7 +16,7 @@ const ReportsDashboard = () => {
   const [menu, setMenu] = useState(null);
 
   useEffect(() => {
-    // Set tomorrow as default (since students select for tomorrow)
+    // Set tomorrow as default (since employees select for tomorrow)
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
    setSelectedDate(getLocalDateString(tomorrow));
@@ -110,6 +110,9 @@ const ReportsDashboard = () => {
              const breakfastItems = Array.isArray(data.breakfast) ? data.breakfast : [];
              const lunchItems = Array.isArray(data.lunch) ? data.lunch : [];
              const snacksItems = Array.isArray(data.snacks) ? data.snacks : [];
+
+             // Skip documents with no items (e.g. a day cleared in the weekly view)
+             if (breakfastItems.length + lunchItems.length + snacksItems.length === 0) return;
 
              if (breakfastItems.length > 0) counts.breakfast++;
              if (lunchItems.length > 0) counts.lunch++;
