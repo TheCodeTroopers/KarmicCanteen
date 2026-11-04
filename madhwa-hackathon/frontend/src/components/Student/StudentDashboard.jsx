@@ -452,7 +452,7 @@ const StudentDashboard = () => {
         <div>
           <h1 style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <ClipboardCheck size={28} style={{ color: 'var(--accent-primary)' }} />
-            Student Meal Selection
+            Employee Meal Selection
           </h1>
           <p className="subtitle">Select your meals for tomorrow</p>
         </div>
@@ -750,3 +750,4 @@ const StudentDashboard = () => {
 };
 
 export default StudentDashboard;
+

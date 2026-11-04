@@ -170,7 +170,7 @@ const AnalyticsDashboard = () => {
           </div>
           <div className="stat-content">
             <div className="stat-value">{analytics.totalStudents}</div>
-            <div className="stat-label">Total Students</div>
+            <div className="stat-label">Total Employees</div>
           </div>
         </div>
 
@@ -208,7 +208,7 @@ const AnalyticsDashboard = () => {
           ></div>
         </div>
         <p className="participation-text">
-          {analytics.todayParticipants} of {analytics.totalStudents} students participating
+          {analytics.todayParticipants} of {analytics.totalStudents} employees participating
         </p>
       </div>
 
@@ -317,3 +317,4 @@ const AnalyticsDashboard = () => {
 };
 
 export default AnalyticsDashboard;
+

@@ -91,9 +91,17 @@ function AppContent() {
               }
             />
 
-            {/* Student Routes - Only accessible by students */}
+            
             <Route
               path="/student/*"
+              element={
+                <ProtectedRoute requiredRole="student">
+                  <StudentDashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/employee/*"
               element={
                 <ProtectedRoute requiredRole="student">
                   <StudentDashboard />
@@ -138,4 +146,6 @@ function App() {
 }
 
 export default App;
+
+
 
