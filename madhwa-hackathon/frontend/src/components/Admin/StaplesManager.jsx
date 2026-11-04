@@ -691,7 +691,7 @@ const StaplesManager = () => {
 
           <p>
             These items appear every day for
-            students in addition to the
+            employees in addition to the
             special menu for each date.
             Toggle availability and optionally
             set a quantity for each item.
@@ -977,3 +977,4 @@ const StaplesManager = () => {
 
 
 export default StaplesManager;
+
