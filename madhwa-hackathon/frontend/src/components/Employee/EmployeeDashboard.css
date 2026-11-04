@@ -188,6 +188,8 @@
   box-shadow: 0 4px 16px rgba(26, 109, 204, 0.25);
   position: relative;
   overflow: hidden;
+  /* clip (unlike hidden) can't be scrolled, so focusing the toggle never shifts the heading out of view */
+  overflow: clip;
 }
 
 .date-card::before {
@@ -199,6 +201,7 @@
   height: 200%;
   background: radial-gradient(circle, rgba(255, 255, 255, 0.08) 0%, transparent 60%);
   animation: rotateOrb 25s linear infinite;
+  pointer-events: none; /* decorative layer; don't block clicks on the view toggle */
 }
 
 @keyframes rotateOrb {
@@ -1028,7 +1031,7 @@
   transition: all 0.18s ease;
 }
 
-.item-chip:hover:not(:disabled) {
+.item-chip:hover:not(:disabled):not(.selected) {
   border-color: #f97316;
   background: #ffedd5;
   transform: translateY(-1px);
