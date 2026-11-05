@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import notificationService from '../../utils/notificationService';
 import WeeklyMealSelector from './WeeklyMealSelector';
+import EmployeeAnnouncements from './EmployeeAnnouncements';
 import './EmployeeDashboard.css';
 
 const MEAL_TYPES = [
@@ -498,6 +499,8 @@ const EmployeeDashboard = () => {
           </div>
         </div>
       )}
+
+      <EmployeeAnnouncements />
 
       {message.text && (
         <div className={`message ${message.type}`}>
