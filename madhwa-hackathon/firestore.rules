@@ -137,9 +137,11 @@ service cloud.firestore {
 
     match /announcements/{announcementId} {
 
-      // Only admins can create/delete/manage announcements
-      // for now.
-      allow read, create, update, delete: if isAdmin();
+      // Logged-in users (employees) can read announcements.
+      allow read: if isSignedIn();
+
+      // Only admins can create/update/delete announcements.
+      allow create, update, delete: if isAdmin();
     }
 
 
