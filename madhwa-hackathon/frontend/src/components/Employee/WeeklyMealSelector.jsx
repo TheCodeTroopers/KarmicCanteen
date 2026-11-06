@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { doc, setDoc } from 'firebase/firestore';
 import { db } from '../../firebase/config';
-import { getDocWithCache, docCacheKey } from '../../utils/indexedDbCache';
+import { getDocWithCache, cacheDocument, docCacheKey } from '../../utils/indexedDbCache';
 import { useAuth } from '../../context/AuthContext';
 import { getLocalDateString } from '../../utils/dateUtils';
 import {
@@ -27,7 +27,7 @@ const mealTimings = {
 
 const EMPTY_DAY_SELECTION = { breakfast: [], lunch: [], snacks: [], dinner: [] };
 
-const WeeklyMealSelector = ({ showDefaultMenu, setShowDefaultMenu }) => {
+const WeeklyMealSelector = ({ showDefaultMenu, setShowDefaultMenu, onSaveSuccess }) => {
   const { currentUser } = useAuth();
   const [weekDays, setWeekDays] = useState([]);
   const [weeklySelections, setWeeklySelections] = useState({});
@@ -349,19 +349,25 @@ const WeeklyMealSelector = ({ showDefaultMenu, setShowDefaultMenu }) => {
         if (!hasAnyItems && !savedDates.has(dateStr)) continue;
 
         const selectionRef = doc(db, 'mealSelections', dateStr, 'users', currentUser.uid);
-        await setDoc(selectionRef, {
+        const dayData = {
           ...selections,
           date: dateStr,
+          status: 'Confirmed',
           userId: currentUser.uid,
           email: currentUser.email,
           timestamp: new Date().toISOString()
-        });
+        };
+        await setDoc(selectionRef, dayData);
+        await cacheDocument(docCacheKey('mealSelections', dateStr, 'users', currentUser.uid), dayData);
         nextSavedDates.add(dateStr);
         savedCount++;
       }
       setSavedDates(nextSavedDates);
 
       showMessage('success', `✓ Saved selections for ${savedCount} days!`);
+      if (onSaveSuccess) {
+        onSaveSuccess();
+      }
     } catch (error) {
       console.error('Error saving weekly selections:', error);
       showMessage('error', 'Failed to save selections');
