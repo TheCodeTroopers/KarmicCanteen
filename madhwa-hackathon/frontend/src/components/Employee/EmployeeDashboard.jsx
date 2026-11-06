@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { doc, setDoc } from 'firebase/firestore';
 import { db } from '../../firebase/config';
-import { getDocWithCache, docCacheKey } from '../../utils/indexedDbCache';
+import { getDocWithCache, cacheDocument, docCacheKey } from '../../utils/indexedDbCache';
 import { useAuth } from '../../context/AuthContext';
 import { getLocalDateString } from '../../utils/dateUtils';
 import { 
@@ -12,6 +12,7 @@ import {
 import notificationService from '../../utils/notificationService';
 import WeeklyMealSelector from './WeeklyMealSelector';
 import EmployeeAnnouncements from './EmployeeAnnouncements';
+import MyOrders from './MyOrders';
 import './EmployeeDashboard.css';
 
 const MEAL_TYPES = [
@@ -45,6 +46,7 @@ const EmployeeDashboard = () => {
   const [viewMode, setViewMode] = useState('daily'); // 'daily' or 'weekly'
   const [showDefaultMenu, setShowDefaultMenu] = useState(true); // Toggle for default menu items
   const [offline, setOffline] = useState(false); // True when data was served from IndexedDB cache
+  const [ordersRefreshTrigger, setOrdersRefreshTrigger] = useState(0);
 
   useEffect(() => {
     fetchDeadlineSettings();
@@ -280,8 +282,9 @@ const EmployeeDashboard = () => {
 
       if (fromCache) setOffline(true);
 
-      if (exists) {
-        if (data.date === tomorrow) {
+      if (exists && data) {
+        const isCancelled = data.status === 'Cancelled' || data.status === 'cancelled';
+        if ((data.date === tomorrow || !data.date) && !isCancelled) {
           const loaded = {
             breakfast: Array.isArray(data.breakfast) ? data.breakfast : [],
             lunch: Array.isArray(data.lunch) ? data.lunch : [],
@@ -389,6 +392,8 @@ const EmployeeDashboard = () => {
 
       const selectionData = {
         ...selections,
+        date: tomorrow,
+        status: 'Confirmed',
         userId: currentUser.uid,
         email: currentUser.email,
         timestamp: new Date().toISOString(),
@@ -396,7 +401,9 @@ const EmployeeDashboard = () => {
       };
 
       await setDoc(selectionRef, selectionData);
+      await cacheDocument(docCacheKey('mealSelections', tomorrow, 'users', currentUser.uid), selectionData);
       setSavedSelections(selections);
+      setOrdersRefreshTrigger(prev => prev + 1);
       showMessage('success', 'Meal preferences saved successfully!');
       setShowSuccessPopup(true);
       showConfirmationNotification();
@@ -406,6 +413,26 @@ const EmployeeDashboard = () => {
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleOrderCancelled = (cancelledDate) => {
+    const tomorrow = getTomorrowDate();
+    if (cancelledDate === tomorrow) {
+      resetSelections();
+      setSavedSelections(null);
+    }
+    // Do NOT bump refreshTrigger here — the optimistic setOrders update in MyOrders
+    // already keeps the cancelled order visible. A re-fetch would race with the
+    // Firestore write and risk dropping the order from the UI.
+  };
+
+  const handleOrderUpdated = (orderDate, newSelections) => {
+    const tomorrow = getTomorrowDate();
+    if (orderDate === tomorrow) {
+      setSelections(newSelections);
+      setSavedSelections(newSelections);
+    }
+    setOrdersRefreshTrigger(prev => prev + 1);
   };
 
   const showMessage = (type, text) => {
@@ -572,6 +599,7 @@ const EmployeeDashboard = () => {
         <WeeklyMealSelector
           showDefaultMenu={showDefaultMenu}
           setShowDefaultMenu={setShowDefaultMenu}
+          onSaveSuccess={() => setOrdersRefreshTrigger(prev => prev + 1)}
         />
       ) : (
         <>
@@ -683,6 +711,15 @@ const EmployeeDashboard = () => {
           )}
         </>
       )}
+
+      {/* My Orders Section */}
+      <MyOrders
+        deadlineHour={deadlineHour}
+        deadlineMinute={deadlineMinute}
+        onOrderCancelled={handleOrderCancelled}
+        onOrderUpdated={handleOrderUpdated}
+        refreshTrigger={ordersRefreshTrigger}
+      />
 
       {showSuccessPopup && (
         <div className="popup-overlay" onClick={() => setShowSuccessPopup(false)}>
