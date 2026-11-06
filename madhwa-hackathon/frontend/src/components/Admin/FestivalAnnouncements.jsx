@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { collection, addDoc, getDocs, deleteDoc, doc, query, orderBy, limit } from 'firebase/firestore';
 import { db } from '../../firebase/config';
+import { Megaphone, PenLine, Send, Info, History, Trash2, Calendar, CheckCircle2, AlertTriangle } from 'lucide-react';
 import './FestivalAnnouncements.css';
 
 const FestivalAnnouncements = () => {
@@ -58,7 +59,7 @@ const FestivalAnnouncements = () => {
         });
       }
 
-      showMessage('success', '✓ Announcement sent successfully!');
+      showMessage('success', 'Announcement sent successfully!');
       setTitle('');
       setMessage('');
       fetchAnnouncements();
@@ -104,20 +105,20 @@ const FestivalAnnouncements = () => {
   return (
     <div className="festival-announcements">
       <div className="announcements-header">
-        <h2>📢 Festival & Event Announcements</h2>
+        <h2><Megaphone size={22} className="inline-icon" />Festival & Event Announcements</h2>
         <p className="subtitle">Send notifications to all employees</p>
       </div>
 
       {statusMessage.text && (
         <div className={`message ${statusMessage.type}`}>
-          {statusMessage.type === 'success' && '✓'}
-          {statusMessage.type === 'error' && '⚠'}
-          {' '}{statusMessage.text}
+          {statusMessage.type === 'success' && <CheckCircle2 size={16} className="inline-icon" />}
+          {statusMessage.type === 'error' && <AlertTriangle size={16} className="inline-icon" />}
+          {statusMessage.text}
         </div>
       )}
 
       <div className="announcement-form">
-        <h3>📝 Create New Announcement</h3>
+        <h3><PenLine size={18} className="inline-icon" />Create New Announcement</h3>
         
         <div className="form-group">
           <label>Title</label>
@@ -147,17 +148,17 @@ const FestivalAnnouncements = () => {
           onClick={handleSendAnnouncement}
           disabled={loading || !title.trim() || !message.trim()}
         >
-          {loading ? 'Sending...' : '📤 Send Announcement'}
+          {loading ? 'Sending...' : <><Send size={16} className="inline-icon" />Send Announcement</>}
         </button>
 
         <div className="info-box">
-          <strong>ℹ️ Note:</strong> This announcement will be saved and visible to all employees. 
+          <strong><Info size={16} className="inline-icon" />Note:</strong> This announcement will be saved and visible to all employees. 
           Users with notifications enabled will receive a browser notification.
         </div>
       </div>
 
       <div className="announcements-history">
-        <h3>📚 Recent Announcements</h3>
+        <h3><History size={18} className="inline-icon" />Recent Announcements</h3>
         
         {announcements.length === 0 ? (
           <div className="empty-state">
@@ -174,12 +175,12 @@ const FestivalAnnouncements = () => {
                     onClick={() => handleDeleteAnnouncement(announcement.id)}
                     title="Delete announcement"
                   >
-                    🗑️
+                    <Trash2 size={18} />
                   </button>
                 </div>
                 <p className="announcement-message">{announcement.message}</p>
                 <div className="announcement-footer">
-                  <span className="timestamp">📅 {formatDate(announcement.timestamp)}</span>
+                  <span className="timestamp"><Calendar size={14} className="inline-icon" />{formatDate(announcement.timestamp)}</span>
                   <span className="sent-by">Sent by: {announcement.sentBy}</span>
                 </div>
               </div>

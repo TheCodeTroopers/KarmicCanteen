@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { collection, getDocs } from 'firebase/firestore';
 import { db } from '../../firebase/config';
 import { getLocalDateString } from '../../utils/dateUtils';
+import { RefreshCw, Users, CheckCircle2, Utensils, Coffee, Soup, Cookie } from 'lucide-react';
 import './AnalyticsDashboard.css';
 
 const AnalyticsDashboard = () => {
@@ -161,7 +162,7 @@ const AnalyticsDashboard = () => {
           onClick={fetchAnalytics}
           disabled={loading}
         >
-          🔄 Refresh
+          <RefreshCw size={16} className="inline-icon" />Refresh
         </button>
       </div>
 
@@ -169,7 +170,7 @@ const AnalyticsDashboard = () => {
       <div className="stats-grid">
         <div className="stat-card">
           <div className="stat-icon" style={{ background: '#e0f2fe' }}>
-            <span style={{ color: '#0284c7' }}>👥</span>
+            <Users size={28} style={{ color: '#0284c7' }} />
           </div>
           <div className="stat-content">
             <div className="stat-value">{analytics.totalEmployees}</div>
@@ -179,7 +180,7 @@ const AnalyticsDashboard = () => {
 
         <div className="stat-card">
           <div className="stat-icon" style={{ background: '#dcfce7' }}>
-            <span style={{ color: '#16a34a' }}>✅</span>
+            <CheckCircle2 size={28} style={{ color: '#16a34a' }} />
           </div>
           <div className="stat-content">
             <div className="stat-value">{analytics.todayParticipants}</div>
@@ -189,7 +190,7 @@ const AnalyticsDashboard = () => {
 
         <div className="stat-card full-width">
           <div className="stat-icon" style={{ background: '#fef3c7' }}>
-            <span style={{ color: '#d97706' }}>🍽️</span>
+            <Utensils size={28} style={{ color: '#d97706' }} />
           </div>
           <div className="stat-content">
             <div className="stat-value">{analytics.totalMealsOrdered}</div>
@@ -275,7 +276,7 @@ const AnalyticsDashboard = () => {
 
         <div className="meal-breakdown-card">
           <div className="meal-icon-wrapper" style={{ background: '#fef3c7' }}>
-            <span className="meal-icon">☕</span>
+            <Coffee size={26} className="meal-icon" style={{ color: '#d97706' }} />
           </div>
           <div className="meal-info">
             <h4>Breakfast</h4>
@@ -289,7 +290,7 @@ const AnalyticsDashboard = () => {
 
         <div className="meal-breakdown-card">
           <div className="meal-icon-wrapper" style={{ background: '#dcfce7' }}>
-            <span className="meal-icon">🍱</span>
+            <Soup size={26} className="meal-icon" style={{ color: '#16a34a' }} />
           </div>
           <div className="meal-info">
             <h4>Lunch</h4>
@@ -303,7 +304,7 @@ const AnalyticsDashboard = () => {
 
         <div className="meal-breakdown-card">
           <div className="meal-icon-wrapper" style={{ background: '#f3e8ff' }}>
-            <span className="meal-icon">🍪</span>
+            <Cookie size={26} className="meal-icon" style={{ color: '#9333ea' }} />
           </div>
           <div className="meal-info">
             <h4>Snacks</h4>

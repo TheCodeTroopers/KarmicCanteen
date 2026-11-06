@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '../../firebase/config';
+import { Settings2, Calendar, Lightbulb, CheckCircle2, AlertTriangle, AlarmClock } from 'lucide-react';
 import './AdminSettings.css';
 
 const AdminSettings = () => {
@@ -81,20 +82,20 @@ const AdminSettings = () => {
   return (
     <div className="admin-settings">
       <div className="settings-header">
-        <h2>⚙️ System Settings</h2>
+        <h2><Settings2 size={22} className="inline-icon" />System Settings</h2>
         <p className="subtitle">Configure meal selection deadline time</p>
       </div>
 
       {message.text && (
         <div className={`message ${message.type}`}>
-          {message.type === 'success' ? '✓' : '⚠'} {message.text}
+          {message.type === 'success' ? <CheckCircle2 size={16} className="inline-icon" /> : <AlertTriangle size={16} className="inline-icon" />}{message.text}
         </div>
       )}
 
       <div className="settings-card">
         <div className="setting-section">
           <div className="section-header">
-            <h3>📅 Daily Meal Selection Deadline</h3>
+            <h3><Calendar size={18} className="inline-icon" />Daily Meal Selection Deadline</h3>
             <p className="section-description">
               Set the time by which employees must submit their meal preferences for the next day.
               After this time, the selection form will be locked.
@@ -104,7 +105,7 @@ const AdminSettings = () => {
           <form onSubmit={handleSaveSettings}>
             <div className="time-picker-container">
               <div className="time-display">
-                <div className="time-icon">⏰</div>
+                <div className="time-icon"><AlarmClock size={36} color="white" /></div>
                 <div className="time-text">
                   <span className="label">Current Deadline:</span>
                   <span className="time-value">{formatTime(deadlineHour, deadlineMinute)}</span>
@@ -190,7 +191,7 @@ const AdminSettings = () => {
           </form>
 
           <div className="info-box">
-            <div className="info-icon">💡</div>
+            <div className="info-icon"><Lightbulb size={28} /></div>
             <div className="info-content">
               <strong>How it works:</strong>
               <ul>

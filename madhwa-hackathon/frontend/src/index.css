@@ -105,3 +105,17 @@ html, body, #root {
   background: rgba(26, 109, 204, 0.15);
   color: var(--text-primary);
 }
+
+/* Lucide icon placed inline before text (headings, buttons, labels) */
+.inline-icon {
+  display: inline-block;
+  vertical-align: -0.15em;
+  margin-right: 0.4em;
+  flex-shrink: 0;
+}
+
+/* Icon placed after the text (e.g. "Next" arrows) */
+.inline-icon.trailing {
+  margin-right: 0;
+  margin-left: 0.4em;
+}
