@@ -87,7 +87,7 @@ const PredictionsDashboard = () => {
       
       if (data.success) {
         setPredictions(data);
-        showMessage('success', `✓ Predicted ${data.total_meals} total meals for ${data.date}`);
+        showMessage('success', `Predicted ${data.total_meals} total meals for ${data.date}`);
       } else {
         showMessage('error', data.message || 'Failed to generate predictions');
       }

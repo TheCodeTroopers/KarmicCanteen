@@ -19,7 +19,9 @@ import {
   ChefHat,
   Info,
   Check,
-  AlertTriangle
+  AlertTriangle,
+  Calendar,
+  X
 } from 'lucide-react';
 import './StaplesManager.css';
 
@@ -704,7 +706,7 @@ const StaplesManager = () => {
 
       <div className="staples-date-selector" style={{ marginBottom: '16px' }}>
         <label htmlFor="staples-menu-date">
-          📅 Menu date to check for conflicts
+          <Calendar size={16} className="inline-icon" />Menu date to check for conflicts
         </label>
         <input
           id="staples-menu-date"
@@ -931,7 +933,7 @@ const StaplesManager = () => {
                                 )
                               }
                             >
-                              ×
+                              <X size={12} />
                             </button>
 
                           </div>

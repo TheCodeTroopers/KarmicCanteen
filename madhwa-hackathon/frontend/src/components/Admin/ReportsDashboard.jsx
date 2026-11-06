@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { collection, getDocs, doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '../../firebase/config';
 import { getLocalDateString } from '../../utils/dateUtils';
+import { Calendar, RefreshCw, Download, BarChart3, Coffee, Soup, Cookie, ClipboardList, Users, History, Check, X, CheckCircle2, AlertTriangle, ChevronLeft, ChevronRight } from 'lucide-react';
 import './ReportsDashboard.css';
 
 const ReportsDashboard = () => {
@@ -245,15 +246,15 @@ const goToPreviousPage = () => {
     <div className="reports-dashboard">
       {message.text && (
         <div className={`message ${message.type}`}>
-          {message.type === 'success' && '✓'}
-          {message.type === 'error' && '⚠'}
-          {' '}{message.text}
+          {message.type === 'success' && <CheckCircle2 size={16} className="inline-icon" />}
+          {message.type === 'error' && <AlertTriangle size={16} className="inline-icon" />}
+          {message.text}
         </div>
       )}
 
       <div className="report-controls">
         <div className="date-selector">
-          <label>📅 Select Date</label>
+          <label><Calendar size={16} className="inline-icon" />Select Date</label>
           <input
             type="date"
             value={selectedDate}
@@ -270,7 +271,7 @@ const goToPreviousPage = () => {
             onClick={generateReport}
             disabled={loading}
           >
-            {loading ? 'Generating...' : '🔄 Generate Report'}
+            {loading ? 'Generating...' : <><RefreshCw size={16} className="inline-icon" />Generate Report</>}
           </button>
           
           {report && (
@@ -278,7 +279,7 @@ const goToPreviousPage = () => {
               className="btn btn-secondary"
               onClick={exportToCSV}
             >
-              📥 Export CSV
+              <Download size={16} className="inline-icon" />Export CSV
             </button>
           )}
         </div>
@@ -292,7 +293,7 @@ const goToPreviousPage = () => {
       ) : !report ? (
         <div className="no-report">
           <div className="empty-state">
-            <span className="empty-icon">📊</span>
+            <span className="empty-icon"><BarChart3 size={56} /></span>
             <h3>No Report Available</h3>
             <p>Generate a report to see meal selection statistics for {formatDate(selectedDate)}</p>
             <p className="small-text">Click "Generate Report" above to create one</p>
@@ -302,7 +303,7 @@ const goToPreviousPage = () => {
         <>
           <div className="stats-grid">
             <div className="stat-card breakfast">
-              <div className="stat-icon">🌅</div>
+              <div className="stat-icon"><Coffee size={36} /></div>
               <div className="stat-content">
                 <h4>Breakfast</h4>
                 <p className="stat-number">{report.breakfast}</p>
@@ -311,7 +312,7 @@ const goToPreviousPage = () => {
             </div>
 
             <div className="stat-card lunch">
-              <div className="stat-icon">🌞</div>
+              <div className="stat-icon"><Soup size={36} /></div>
               <div className="stat-content">
                 <h4>Lunch</h4>
                 <p className="stat-number">{report.lunch}</p>
@@ -320,7 +321,7 @@ const goToPreviousPage = () => {
             </div>
 
             <div className="stat-card snacks">
-              <div className="stat-icon">🌙</div>
+              <div className="stat-icon"><Cookie size={36} /></div>
               <div className="stat-content">
                 <h4>Snacks</h4>
                 <p className="stat-number">{report.snacks}</p>
@@ -329,7 +330,7 @@ const goToPreviousPage = () => {
             </div>
 
             <div className="stat-card total">
-              <div className="stat-icon">📊</div>
+              <div className="stat-icon"><BarChart3 size={36} /></div>
               <div className="stat-content">
                 <h4>Total Meals</h4>
                 <p className="stat-number">{getTotal()}</p>
@@ -340,22 +341,22 @@ const goToPreviousPage = () => {
 
           {menu && (
             <div className="menu-reference">
-              <h3>📋 Menu for this day</h3>
+              <h3><ClipboardList size={18} className="inline-icon" />Menu for this day</h3>
               <div className="menu-items-display">
                 <div className="menu-column">
-                  <h4>🌅 Breakfast</h4>
+                  <h4><Coffee size={16} className="inline-icon" />Breakfast</h4>
                   <ul>
                     {menu.breakfast?.map((item, i) => <li key={i}>{typeof item === 'object' && item !== null ? item.name : item}</li>) || <li>No items</li>}
                   </ul>
                 </div>
                 <div className="menu-column">
-                  <h4>🌞 Lunch</h4>
+                  <h4><Soup size={16} className="inline-icon" />Lunch</h4>
                   <ul>
                     {menu.lunch?.map((item, i) => <li key={i}>{typeof item === 'object' && item !== null ? item.name : item}</li>) || <li>No items</li>}
                   </ul>
                 </div>
                 <div className="menu-column">
-                  <h4>🌙 Snacks</h4>
+                  <h4><Cookie size={16} className="inline-icon" />Snacks</h4>
                   <ul>
                     {menu.snacks?.map((item, i) => <li key={i}>{typeof item === 'object' && item !== null ? item.name : item}</li>) || <li>No items</li>}
                   </ul>
@@ -366,16 +367,16 @@ const goToPreviousPage = () => {
 
           {report.participants && report.participants.length > 0 && (
             <div className="participants-table">
-              <h3>👥 Participant Details ({report.totalParticipants})</h3>
+              <h3><Users size={18} className="inline-icon" />Participant Details ({report.totalParticipants})</h3>
               <div className="table-wrapper">
                 <table>
                   <thead>
                     <tr>
                       <th>#</th>
                       <th>Email</th>
-                      <th>🌅 Breakfast</th>
-                      <th>🌞 Lunch</th>
-                      <th>🌙 Snacks</th>
+                      <th><Coffee size={14} className="inline-icon" />Breakfast</th>
+                      <th><Soup size={14} className="inline-icon" />Lunch</th>
+                      <th><Cookie size={14} className="inline-icon" />Snacks</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -385,17 +386,17 @@ const goToPreviousPage = () => {
                         <td>{p.email}</td>
                         <td>
                           <span className={`badge ${p.breakfast ? 'yes' : 'no'}`}>
-                            {p.breakfast ? '✓' : '×'}
+                            {p.breakfast ? <Check size={14} style={{ verticalAlign: '-0.15em' }} aria-label="Yes" /> : <X size={14} style={{ verticalAlign: '-0.15em' }} aria-label="No" />}
                           </span>
                         </td>
                         <td>
                           <span className={`badge ${p.lunch ? 'yes' : 'no'}`}>
-                            {p.lunch ? '✓' : '×'}
+                            {p.lunch ? <Check size={14} style={{ verticalAlign: '-0.15em' }} aria-label="Yes" /> : <X size={14} style={{ verticalAlign: '-0.15em' }} aria-label="No" />}
                           </span>
                         </td>
                         <td>
                           <span className={`badge ${p.snacks ? 'yes' : 'no'}`}>
-                            {p.snacks ? '✓' : '×'}
+                            {p.snacks ? <Check size={14} style={{ verticalAlign: '-0.15em' }} aria-label="Yes" /> : <X size={14} style={{ verticalAlign: '-0.15em' }} aria-label="No" />}
                           </span>
                         </td>
                       </tr>
@@ -410,7 +411,7 @@ const goToPreviousPage = () => {
           onClick={goToPreviousPage}
           disabled={currentPage === 1}
         >
-          ← Previous
+          <ChevronLeft size={16} className="inline-icon" />Previous
         </button>
         <span className="pagination-info">
           Page {currentPage} of {totalParticipantPages}
@@ -420,7 +421,7 @@ const goToPreviousPage = () => {
           onClick={goToNextPage}
           disabled={currentPage === totalParticipantPages}
         >
-          Next →
+          Next<ChevronRight size={16} className="inline-icon trailing" />
         </button>
       </div>
     )}
@@ -433,7 +434,7 @@ const goToPreviousPage = () => {
       {/* Recent Reports */}
       {allReports.length > 0 && (
         <div className="recent-reports">
-          <h3>📚 Recent Reports</h3>
+          <h3><History size={18} className="inline-icon" />Recent Reports</h3>
           <div className="reports-list">
             {allReports.slice(0, 5).map(r => (
               <div 
@@ -446,9 +447,9 @@ const goToPreviousPage = () => {
                   {/* <span className="date-code">{r.date}</span> */}
                 </div>
                 <div className="report-summary">
-                  <span>🌅 {r.breakfast}</span>
-                  <span>🌞 {r.lunch}</span>
-                  <span>🌙 {r.snacks}</span>
+                  <span title="Breakfast"><Coffee size={14} className="inline-icon" />{r.breakfast}</span>
+                  <span title="Lunch"><Soup size={14} className="inline-icon" />{r.lunch}</span>
+                  <span title="Snacks"><Cookie size={14} className="inline-icon" />{r.snacks}</span>
                   <span className="total-badge">{r.breakfast + r.lunch + r.snacks} total</span>
                 </div>
               </div>
