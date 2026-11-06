@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { doc, setDoc, getDoc, collection, getDocs, deleteDoc, writeBatch } from 'firebase/firestore';
 import { db } from '../../firebase/config';
 import { getLocalDateString } from '../../utils/dateUtils';
+import { Calendar, ClipboardList, Coffee, Soup, Cookie, ChefHat, History, CheckCircle2, AlertTriangle, Info, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import './MenuManager.css';
 
 const MenuManager = () => {
@@ -461,17 +462,17 @@ const goToPreviousPage = () => {
     <div className="menu-manager">
       {message.text && (
         <div className={`message ${message.type}`}>
-          {message.type === 'success' && '✓'}
-          {message.type === 'error' && '⚠'}
-          {message.type === 'info' && 'ℹ'}
-          {' '}{message.text}
+          {message.type === 'success' && <CheckCircle2 size={16} className="inline-icon" />}
+          {message.type === 'error' && <AlertTriangle size={16} className="inline-icon" />}
+          {message.type === 'info' && <Info size={16} className="inline-icon" />}
+          {message.text}
         </div>
       )}
 
       <div className="menu-editor">
         <div className="editor-header">
           <div className="date-selector">
-            <label>📅 Select Date</label>
+            <label><Calendar size={16} className="inline-icon" />Select Date</label>
             <input
               type="date"
               value={selectedDate}
@@ -490,7 +491,7 @@ const goToPreviousPage = () => {
               onClick={handleLoadDefaultMenu}
               title="Populate items from Default Menu stored in Firestore"
             >
-              📋 Load Default Menu
+              <ClipboardList size={16} className="inline-icon" />Load Default Menu
             </button>
             <div className="stat-box">
               <span className="stat-label">Total Items</span>
@@ -503,7 +504,7 @@ const goToPreviousPage = () => {
           {/* Breakfast Section */}
           <div className="meal-section">
             <div className="meal-section-header">
-              <h3>🌅 Breakfast</h3>
+              <h3><Coffee size={18} className="inline-icon" />Breakfast</h3>
               <span className="item-count">{menuItems.breakfast.length} items</span>
             </div>
 
@@ -575,7 +576,7 @@ const goToPreviousPage = () => {
                           handleRemoveItem('breakfast', index)
                         }
                       >
-                        ×
+                        <X size={14} style={{ verticalAlign: 'middle' }} aria-label="Remove item" />
                       </button>
 
                     </div>
@@ -588,7 +589,7 @@ const goToPreviousPage = () => {
           {/* Lunch Section */}
           <div className="meal-section">
             <div className="meal-section-header">
-              <h3>🌞 Lunch</h3>
+              <h3><Soup size={18} className="inline-icon" />Lunch</h3>
               <span className="item-count">{menuItems.lunch.length} items</span>
             </div>
 
@@ -660,7 +661,7 @@ const goToPreviousPage = () => {
                           handleRemoveItem('lunch', index)
                         }
                       >
-                        ×
+                        <X size={14} style={{ verticalAlign: 'middle' }} aria-label="Remove item" />
                       </button>
 
                     </div>
@@ -673,7 +674,7 @@ const goToPreviousPage = () => {
           {/* Snacks Section */}
           <div className="meal-section">
             <div className="meal-section-header">
-              <h3>🌙 Snacks</h3>
+              <h3><Cookie size={18} className="inline-icon" />Snacks</h3>
               <span className="item-count">{menuItems.snacks.length} items</span>
             </div>
 
@@ -745,7 +746,7 @@ const goToPreviousPage = () => {
                           handleRemoveItem('snacks', index)
                         }
                       >
-                        ×
+                        <X size={14} style={{ verticalAlign: 'middle' }} aria-label="Remove item" />
                       </button>
 
                     </div>
@@ -758,7 +759,7 @@ const goToPreviousPage = () => {
           {/* Dinner Section */}
           <div className="meal-section">
             <div className="meal-section-header">
-              <h3>🍽️ Dinner</h3>
+              <h3><ChefHat size={18} className="inline-icon" />Dinner</h3>
               <span className="item-count">{menuItems.dinner.length} items</span>
             </div>
 
@@ -830,7 +831,7 @@ const goToPreviousPage = () => {
                           handleRemoveItem('dinner', index)
                         }
                       >
-                        ×
+                        <X size={14} style={{ verticalAlign: 'middle' }} aria-label="Remove item" />
                       </button>
 
                     </div>
@@ -854,7 +855,7 @@ const goToPreviousPage = () => {
 
       {/* Existing Menus List */}
       <div className="existing-menus">
-        <h3>📚 Existing Menus</h3>
+        <h3><History size={18} className="inline-icon" />Existing Menus</h3>
         {existingMenus.length === 0 ? (
           <p className="empty-state">No menus created yet</p>
         ) : (
@@ -866,10 +867,10 @@ const goToPreviousPage = () => {
                   {/* <span className="menu-date-code">{menu.date}</span> */}
                 </div>
                 <div className="menu-summary">
-                  <span>🌅 {menu.breakfast?.length || 0}</span>
-                  <span>🌞 {menu.lunch?.length || 0}</span>
-                  <span>🌙 {menu.snacks?.length || 0}</span>
-                  <span>🍽️ {menu.dinner?.length || 0}</span>
+                  <span title="Breakfast"><Coffee size={14} className="inline-icon" />{menu.breakfast?.length || 0}</span>
+                  <span title="Lunch"><Soup size={14} className="inline-icon" />{menu.lunch?.length || 0}</span>
+                  <span title="Snacks"><Cookie size={14} className="inline-icon" />{menu.snacks?.length || 0}</span>
+                  <span title="Dinner"><ChefHat size={14} className="inline-icon" />{menu.dinner?.length || 0}</span>
                 </div>
                 <div className="menu-actions">
                   <button
@@ -897,7 +898,7 @@ const goToPreviousPage = () => {
               onClick={goToPreviousPage}
               disabled={currentPage === 1}
             >
-              ← Previous
+              <ChevronLeft size={16} className="inline-icon" />Previous
             </button>
             <span className="pagination-info">
               Page {currentPage} of {totalPages}
@@ -907,7 +908,7 @@ const goToPreviousPage = () => {
               onClick={goToNextPage}
               disabled={currentPage === totalPages}
             >
-              Next →
+              Next<ChevronRight size={16} className="inline-icon trailing" />
             </button>
           </div>
         )}

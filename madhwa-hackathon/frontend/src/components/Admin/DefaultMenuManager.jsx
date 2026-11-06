@@ -26,7 +26,8 @@ import {
   AlertTriangle,
   Save,
   UtensilsCrossed,
-  Sparkles
+  Sparkles,
+  X
 } from 'lucide-react';
 import './DefaultMenuManager.css';
 
@@ -238,7 +239,7 @@ const DefaultMenuManager = () => {
         console.warn('defaultMenu update warning (rule may be un-deployed on console):', e);
       }
 
-      showMessage('success', '✓ Default Menu saved successfully to Cloud Firestore!');
+      showMessage('success', 'Default Menu saved successfully to Cloud Firestore!');
     } catch (error) {
       console.error('Error saving default menu:', error);
       showMessage('error', `Failed to save Default Menu: ${error.message || 'Permission denied'}`);
@@ -368,7 +369,7 @@ const DefaultMenuManager = () => {
                         onClick={() => handleRemoveItem(key, index)}
                         title="Remove item"
                       >
-                        ×
+                        <X size={16} />
                       </button>
                     </div>
                   </div>

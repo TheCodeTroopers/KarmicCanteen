@@ -7,7 +7,7 @@ import { useAuth } from '../../context/AuthContext';
 import { getLocalDateString } from '../../utils/dateUtils';
 import {
   Calendar, Clock, CheckCircle2, AlertTriangle,
-  Info, Coffee, Soup, Cookie, ChefHat, Check, History
+  Info, Coffee, Soup, Cookie, ChefHat, Check, History, X
 } from 'lucide-react';
 import './WeeklyMealSelector.css';
 
@@ -364,7 +364,7 @@ const WeeklyMealSelector = ({ showDefaultMenu, setShowDefaultMenu, onSaveSuccess
       }
       setSavedDates(nextSavedDates);
 
-      showMessage('success', `✓ Saved selections for ${savedCount} days!`);
+      showMessage('success', `Saved selections for ${savedCount} days!`);
       if (onSaveSuccess) {
         onSaveSuccess();
       }
@@ -536,7 +536,7 @@ const WeeklyMealSelector = ({ showDefaultMenu, setShowDefaultMenu, onSaveSuccess
           <div className="history-modal" onClick={(e) => e.stopPropagation()}>
             <div className="history-modal-header">
               <h3>Your Meal History (Last 14 Days)</h3>
-              <button className="history-close-btn" onClick={() => setShowHistory(false)}>×</button>
+              <button className="history-close-btn" onClick={() => setShowHistory(false)} aria-label="Close history"><X size={18} /></button>
             </div>
             <div className="history-modal-body">
               {historyLoading ? (
