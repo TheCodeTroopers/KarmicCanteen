@@ -421,6 +421,17 @@ const EmployeeDashboard = () => {
       resetSelections();
       setSavedSelections(null);
     }
+    // Do NOT bump refreshTrigger here — the optimistic setOrders update in MyOrders
+    // already keeps the cancelled order visible. A re-fetch would race with the
+    // Firestore write and risk dropping the order from the UI.
+  };
+
+  const handleOrderUpdated = (orderDate, newSelections) => {
+    const tomorrow = getTomorrowDate();
+    if (orderDate === tomorrow) {
+      setSelections(newSelections);
+      setSavedSelections(newSelections);
+    }
     setOrdersRefreshTrigger(prev => prev + 1);
   };
 
@@ -706,6 +717,7 @@ const EmployeeDashboard = () => {
         deadlineHour={deadlineHour}
         deadlineMinute={deadlineMinute}
         onOrderCancelled={handleOrderCancelled}
+        onOrderUpdated={handleOrderUpdated}
         refreshTrigger={ordersRefreshTrigger}
       />
 
