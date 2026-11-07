@@ -11,14 +11,37 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    function isAdmin() {
+    // Role stored at users/<uid>.role. Values must be exactly
+    // 'employee', 'admin' or 'super_admin'.
+    function userRole() {
+      return get(
+        /databases/$(database)/documents/users/$(request.auth.uid)
+      ).data.role;
+    }
+
+    function hasRole(role) {
       return isSignedIn()
         && exists(
           /databases/$(database)/documents/users/$(request.auth.uid)
         )
-        && get(
-          /databases/$(database)/documents/users/$(request.auth.uid)
-        ).data.role == 'admin';
+        && userRole() == role;
+    }
+
+    // Canteen admin: menus, reports, settings, announcements.
+    function isAdmin() {
+      return hasRole('admin');
+    }
+
+    // User-account manager: adds/removes admins and employees.
+    // Separate from admin — has no canteen management access.
+    function isSuperAdmin() {
+      return hasRole('super_admin');
+    }
+
+    // Roles a super admin may assign. 'super_admin' is intentionally
+    // excluded: super admins are only created from the Firebase Console.
+    function isAssignableRole(role) {
+      return role in ['employee', 'admin'];
     }
 
 
@@ -29,15 +52,27 @@ service cloud.firestore {
     match /users/{userId} {
 
       // A user can read their own profile.
-      // Admin can read all user profiles.
+      // Admin can read all profiles (used by the analytics dashboard).
+      // Super admin can read all profiles (to manage accounts).
       allow read: if isSignedIn()
                   && (
                     request.auth.uid == userId
                     || isAdmin()
+                    || isSuperAdmin()
                   );
 
-      // Only admins can create/update/delete user profiles.
-      allow create, update, delete: if isAdmin();
+      // Only super admins can create/update/delete user profiles, and only
+      // for admin/employee accounts. Nobody — including admins — can write
+      // a 'super_admin' role or modify/delete an existing super admin.
+      allow create: if isSuperAdmin()
+                    && isAssignableRole(request.resource.data.role);
+
+      allow update: if isSuperAdmin()
+                    && isAssignableRole(resource.data.role)
+                    && isAssignableRole(request.resource.data.role);
+
+      allow delete: if isSuperAdmin()
+                    && isAssignableRole(resource.data.role);
     }
 
 
