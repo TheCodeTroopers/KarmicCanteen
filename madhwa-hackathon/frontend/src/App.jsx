@@ -2,37 +2,62 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { ROLES } from './utils/roles';
 import Login from './components/Auth/Login';
 import EmployeeDashboard from './components/Employee/EmployeeDashboard';
 import AdminDashboard from './components/Admin/AdminDashboard';
+import SuperAdminDashboard from './components/SuperAdmin/SuperAdminDashboard';
 import Navbar from './components/Layout/Navbar';
 import PWAPrompt from './components/Common/PWAPrompt';
 import './App.css';
 
+// Home dashboard for each role. Unknown/missing roles have no dashboard.
+const DASHBOARD_PATHS = {
+  [ROLES.EMPLOYEE]: '/employee',
+  [ROLES.ADMIN]: '/admin',
+  [ROLES.SUPER_ADMIN]: '/super-admin'
+};
+
+const dashboardPathFor = (role) => DASHBOARD_PATHS[role] || null;
+
+const LoadingScreen = () => (
+  <div className="loading-container">
+    <div className="spinner"></div>
+    <p>Loading...</p>
+  </div>
+);
+
+// Shown to signed-in users whose Firestore role is missing or unrecognized.
+// (Redirecting them would loop, since no dashboard accepts them.)
+const NoAccess = () => (
+  <div className="loading-container">
+    <p>Your account has no role assigned. Please contact your administrator.</p>
+  </div>
+);
+
+// Sends a signed-in user to the dashboard for their role.
+const RoleRedirect = () => {
+  const { userRole } = useAuth();
+  const path = dashboardPathFor(userRole);
+  return path ? <Navigate to={path} replace /> : <NoAccess />;
+};
+
 // Protected Route Component
-const ProtectedRoute = ({ children, requiredRole }) => {
+// allowedRoles: roles permitted on this route. Omit to allow any signed-in user.
+const ProtectedRoute = ({ children, allowedRoles }) => {
   const { currentUser, userRole, loading } = useAuth();
 
   if (loading) {
-    return (
-      <div className="loading-container">
-        <div className="spinner"></div>
-        <p>Loading...</p>
-      </div>
-    );
+    return <LoadingScreen />;
   }
 
   if (!currentUser) {
     return <Navigate to="/login" replace />;
   }
 
-  if (requiredRole && userRole !== requiredRole) {
-    // Redirect to correct dashboard based on actual role
-    if (userRole === 'admin') {
-      return <Navigate to="/admin" replace />;
-    } else {
-      return <Navigate to="/employee" replace />;
-    }
+  if (allowedRoles && !allowedRoles.includes(userRole)) {
+    // Wrong role for this route: send them to their own dashboard.
+    return <RoleRedirect />;
   }
 
   return children;
@@ -40,16 +65,11 @@ const ProtectedRoute = ({ children, requiredRole }) => {
 
 // Main App Component
 function AppContent() {
-  const { currentUser, userRole, loading } = useAuth();
+  const { currentUser, loading } = useAuth();
 
   // Show loading spinner while checking auth
   if (loading) {
-    return (
-      <div className="loading-container">
-        <div className="spinner"></div>
-        <p>Loading...</p>
-      </div>
-    );
+    return <LoadingScreen />;
   }
 
   return (
@@ -57,24 +77,13 @@ function AppContent() {
       <div className="app">
         <PWAPrompt />
         {currentUser && <Navbar />}
-        
+
         <div className="main-content">
           <Routes>
-            {/* Public Route - Login */}
-            <Route 
-              path="/login" 
-              element={
-                currentUser ? (
-                  // Redirect based on role after login
-                  userRole === 'admin' ? (
-                    <Navigate to="/admin" replace />
-                  ) : (
-                    <Navigate to="/employee" replace />
-                  )
-                ) : (
-                  <Login />
-                )
-              } 
+            {/* Public Route - Login (signed-in users go to their dashboard) */}
+            <Route
+              path="/login"
+              element={currentUser ? <RoleRedirect /> : <Login />}
             />
 
             {/* Home Route - Redirects based on role */}
@@ -82,21 +91,16 @@ function AppContent() {
               path="/"
               element={
                 <ProtectedRoute>
-                  {userRole === 'admin' ? (
-                    <Navigate to="/admin" replace />
-                  ) : (
-                    <Navigate to="/employee" replace />
-                  )}
+                  <RoleRedirect />
                 </ProtectedRoute>
               }
             />
 
-            
             {/* Employee Routes - Only accessible by employees */}
             <Route
               path="/employee/*"
               element={
-                <ProtectedRoute requiredRole="employee">
+                <ProtectedRoute allowedRoles={[ROLES.EMPLOYEE]}>
                   <EmployeeDashboard />
                 </ProtectedRoute>
               }
@@ -109,22 +113,32 @@ function AppContent() {
             <Route
               path="/admin/*"
               element={
-                <ProtectedRoute requiredRole="admin">
+                <ProtectedRoute allowedRoles={[ROLES.ADMIN]}>
                   <AdminDashboard />
                 </ProtectedRoute>
               }
             />
 
+            {/* Super Admin Routes - Only accessible by super admins */}
+            <Route
+              path="/super-admin/*"
+              element={
+                <ProtectedRoute allowedRoles={[ROLES.SUPER_ADMIN]}>
+                  <SuperAdminDashboard />
+                </ProtectedRoute>
+              }
+            />
+
             {/* 404 Route - Redirect to appropriate dashboard */}
-            <Route 
-              path="*" 
+            <Route
+              path="*"
               element={
                 currentUser ? (
                   <Navigate to="/" replace />
                 ) : (
                   <Navigate to="/login" replace />
                 )
-              } 
+              }
             />
           </Routes>
         </div>
@@ -142,6 +156,3 @@ function App() {
 }
 
 export default App;
-
-
-

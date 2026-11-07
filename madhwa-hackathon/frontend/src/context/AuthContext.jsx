@@ -28,6 +28,11 @@ import {
   db
 } from '../firebase/config';
 
+import {
+  ROLES,
+  normalizeRole
+} from '../utils/roles';
+
 
 const AuthContext = createContext();
 
@@ -180,16 +185,10 @@ export const AuthProvider = ({ children }) => {
                 /*
                  * Make sure role is a string.
                  */
-                if (
-                  typeof role === 'string'
-                ) {
+                const normalizedRole =
+                  normalizeRole(role);
 
-                  let normalizedRole =
-                    role.trim().toLowerCase();
-
-                  if (normalizedRole === 'student') {
-                    normalizedRole = 'employee';
-                  }
+                if (normalizedRole) {
 
                   console.log(
                     'Normalized role:',
@@ -204,7 +203,8 @@ export const AuthProvider = ({ children }) => {
                 } else {
 
                   console.warn(
-                    'User role is missing or is not a string.'
+                    'User role is missing or not a recognized role:',
+                    role
                   );
 
                   setUserRole(null);
@@ -280,15 +280,11 @@ export const AuthProvider = ({ children }) => {
                   docCacheKey('users', user.uid)
                 );
 
-              if (
-                cached &&
-                typeof cached.role === 'string'
-              ) {
+              const cachedRole =
+                normalizeRole(cached?.role);
 
-                let cachedRole = cached.role.trim().toLowerCase();
-                if (cachedRole === 'student') {
-                  cachedRole = 'employee';
-                }
+              if (cachedRole) {
+
                 setUserRole(cachedRole);
 
               } else {
@@ -549,6 +545,12 @@ export const AuthProvider = ({ children }) => {
     currentUser,
 
     userRole,
+
+    isEmployee: userRole === ROLES.EMPLOYEE,
+
+    isAdmin: userRole === ROLES.ADMIN,
+
+    isSuperAdmin: userRole === ROLES.SUPER_ADMIN,
 
     loading,
 
