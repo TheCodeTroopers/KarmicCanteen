@@ -1,0 +1,16 @@
+{
+  "name": "karmic-canteen-dev-server",
+  "version": "1.0.0",
+  "description": "Local development API server for Karmic Canteen",
+  "main": "devServer.js",
+  "scripts": {
+    "start": "node devServer.js",
+    "dev": "node devServer.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "firebase-admin": "^13.1.0"
+  }
+}
