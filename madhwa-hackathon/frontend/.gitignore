@@ -30,3 +30,10 @@ dist-ssr
 *.json
 .env.*
 !.env.example
+
+.env
+.env.*
+!.env.example
+
+*firebase-adminsdk*.json
+*serviceAccountKey*.json
