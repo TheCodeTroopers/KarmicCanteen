@@ -26,3 +26,14 @@ dist-ssr
 # Environment files
 .env
 .env.local
+
+*.json
+.env.*
+!.env.example
+
+.env
+.env.*
+!.env.example
+
+*firebase-adminsdk*.json
+*serviceAccountKey*.json
