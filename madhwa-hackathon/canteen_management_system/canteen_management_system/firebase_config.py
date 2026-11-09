@@ -8,26 +8,22 @@ import os
 import json
 from typing import Optional
 from datetime import datetime
+import os
+from dotenv import load_dotenv
 
+# Load environment variables from the .env file
+load_dotenv()
 
 # Your Firebase Project Configuration
-FIREBASE_PROJECT_CONFIG = {
-    "apiKey": "AIzaSyBeSp-YLbbPnEUrEdzro-4PS2TCg4JBQxg",
-    "authDomain": "madhwa-hackathon.firebaseapp.com",
-    "projectId": "madhwa-hackathon",
-    "storageBucket": "madhwa-hackathon.firebasestorage.app",
-    "messagingSenderId": "136044007781",
-    "appId": "1:136044007781:web:e5ad8af1ae652ae31c518c",
-    "measurementId": "G-SBR5LXLPHL"
-}
+FIREBASE_CREDENTIALS = os.getenv("FIREBASE_CREDENTIALS")
 
 
 class FirebaseConfig:
     """Manages Firebase connection and configuration"""
-    
+
     _db = None
     _initialized = False
-    
+
     @classmethod
     def initialize(cls, credentials_path: Optional[str] = None, use_project_config: bool = True) -> firestore.Client:
         """
@@ -43,12 +39,12 @@ class FirebaseConfig:
         """
         if cls._initialized:
             return cls._db
-        
+
         try:
             # Try to get credentials from environment or parameter
             if credentials_path is None:
                 credentials_path = os.getenv('FIREBASE_CREDENTIALS')
-            
+
             if credentials_path and os.path.exists(credentials_path):
                 cred = credentials.Certificate(credentials_path)
                 firebase_admin.initialize_app(cred)
@@ -63,11 +59,11 @@ class FirebaseConfig:
                 # Try default credentials (for Cloud environments)
                 firebase_admin.initialize_app()
                 print("✅ Firebase initialized with default credentials")
-            
+
             cls._db = firestore.client()
             cls._initialized = True
             return cls._db
-            
+
         except Exception as e:
             print(f"⚠️ Firebase initialization failed: {e}")
             print("💡 To use Firebase, you need a service account key:")
@@ -75,14 +71,14 @@ class FirebaseConfig:
             print("   2. Click 'Generate New Private Key'")
             print("   3. Save the JSON file and set FIREBASE_CREDENTIALS environment variable")
             return None
-    
+
     @classmethod
     def get_db(cls) -> Optional[firestore.Client]:
         """Get Firestore client instance"""
         if not cls._initialized:
             return cls.initialize()
         return cls._db
-    
+
     @classmethod
     def is_connected(cls) -> bool:
         """Check if Firebase is connected"""
@@ -112,11 +108,11 @@ def create_sample_credentials_template():
         "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
         "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/your-service-account%40your-project.iam.gserviceaccount.com"
     }
-    
+
     template_path = "firebase_credentials_template.json"
     with open(template_path, 'w') as f:
         json.dump(template, f, indent=2)
-    
+
     print(f"📄 Created Firebase credentials template: {template_path}")
     print("   Replace placeholder values with your actual Firebase credentials")
     return template_path
@@ -126,7 +122,7 @@ if __name__ == "__main__":
     # Test Firebase connection
     print("Testing Firebase connection...")
     db = FirebaseConfig.initialize()
-    
+
     if db:
         print("✅ Firebase connection successful!")
     else:

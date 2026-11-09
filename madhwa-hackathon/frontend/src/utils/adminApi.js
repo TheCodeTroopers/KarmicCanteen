@@ -83,9 +83,9 @@ export async function createUser(payload) {
   }
 
   if (!response.ok) {
-    const errorMsg = data?.message || `Request failed with status ${response.status}`;
+    const errorMsg = data?.error?.message || data?.message || `Request failed with status ${response.status}`;
     const err = new Error(errorMsg);
-    err.code = data?.code || 'internal';
+    err.code = data?.error?.code || data?.code || 'internal';
     err.status = response.status;
     throw err;
   }
@@ -137,9 +137,9 @@ export async function deleteUser(payload) {
   }
 
   if (!response.ok) {
-    const errorMsg = data?.message || `Request failed with status ${response.status}`;
+    const errorMsg = data?.error?.message || data?.message || `Request failed with status ${response.status}`;
     const err = new Error(errorMsg);
-    err.code = data?.code || 'internal';
+    err.code = data?.error?.code || data?.code || 'internal';
     err.status = response.status;
     throw err;
   }

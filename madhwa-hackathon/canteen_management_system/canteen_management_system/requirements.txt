@@ -18,3 +18,4 @@ flask>=2.3.0
 # xgboost>=1.7.0
 # matplotlib>=3.6.0
 # seaborn>=0.12.0
+python-dotenv
