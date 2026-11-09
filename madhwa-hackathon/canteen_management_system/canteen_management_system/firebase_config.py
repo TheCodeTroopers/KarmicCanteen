@@ -8,18 +8,14 @@ import os
 import json
 from typing import Optional
 from datetime import datetime
+import os
+from dotenv import load_dotenv
 
+# Load environment variables from the .env file
+load_dotenv()
 
 # Your Firebase Project Configuration
-FIREBASE_PROJECT_CONFIG = {
-    "apiKey": "AIzaSyBeSp-YLbbPnEUrEdzro-4PS2TCg4JBQxg",
-    "authDomain": "madhwa-hackathon.firebaseapp.com",
-    "projectId": "madhwa-hackathon",
-    "storageBucket": "madhwa-hackathon.firebasestorage.app",
-    "messagingSenderId": "136044007781",
-    "appId": "1:136044007781:web:e5ad8af1ae652ae31c518c",
-    "measurementId": "G-SBR5LXLPHL"
-}
+FIREBASE_CREDENTIALS = os.getenv("FIREBASE_CREDENTIALS")
 
 
 class FirebaseConfig:

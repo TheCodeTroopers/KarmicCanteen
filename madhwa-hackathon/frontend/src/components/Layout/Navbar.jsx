@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { Crown, User } from 'lucide-react';
+import { Crown, User, ShieldCheck } from 'lucide-react';
 import './Navbar.css';
 
 const Navbar = () => {
@@ -37,7 +37,12 @@ const Navbar = () => {
           <div className="brand-text">
             <h1>Karmic Canteen</h1>
             <span className={`role-badge ${userRole}`}>
-              {userRole === 'admin' ? (
+              {userRole === 'super_admin' ? (
+                <>
+                  <ShieldCheck size={14} style={{ marginRight: '4px', verticalAlign: 'middle' }} />
+                  Super Admin
+                </>
+              ) : userRole === 'admin' ? (
                 <>
                   <Crown size={14} style={{ marginRight: '4px', verticalAlign: 'middle' }} />
                   Admin

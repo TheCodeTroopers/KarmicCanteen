@@ -11,7 +11,7 @@ FirebaseError: Missing or insufficient permissions
 
 1. **Go to Firebase Console:**
    - Visit: https://console.firebase.google.com/
-   - Select your project: `madhwa-hackathon`
+   - Select your project: `karmicsolutions`
 
 2. **Navigate to Firestore Database:**
    - Click on "Firestore Database" in the left sidebar
