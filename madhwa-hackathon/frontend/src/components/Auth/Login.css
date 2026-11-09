@@ -61,7 +61,7 @@
   border: 1px solid rgba(26, 109, 204, 0.08);
   padding: 48px;
   border-radius: var(--radius-xl);
-  box-shadow: 
+  box-shadow:
     0 20px 60px rgba(0, 0, 0, 0.06),
     0 4px 16px rgba(0, 0, 0, 0.04),
     0 0 0 1px rgba(255, 255, 255, 0.8) inset;
@@ -320,4 +320,65 @@
   .login-card h1 {
     font-size: var(--font-size-xl);
   }
+}
+
+/* Forgot Password & Success Message */
+.forgot-password-link-container {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 8px;
+}
+
+.forgot-password-link {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: var(--font-size-xs);
+  color: var(--accent-primary);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  text-decoration: none;
+  transition: color var(--transition-normal);
+}
+
+.forgot-password-link:hover {
+  text-decoration: underline;
+  color: var(--accent-deep, #0d4f9e);
+}
+
+.back-to-login-container {
+  display: flex;
+  justify-content: center;
+  margin-top: var(--space-lg);
+}
+
+.back-to-login-link {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: var(--font-size-sm);
+  color: var(--accent-primary);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  text-decoration: none;
+  transition: color var(--transition-normal);
+}
+
+.back-to-login-link:hover {
+  text-decoration: underline;
+  color: var(--accent-deep, #0d4f9e);
+}
+
+.success-message {
+  background: rgba(5, 150, 105, 0.08);
+  color: #059669;
+  padding: var(--space-md);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--space-lg);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  border-left: 3px solid #059669;
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
 }
