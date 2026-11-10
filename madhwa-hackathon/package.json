@@ -1,0 +1,8 @@
+{
+  "name": "karmic-canteen",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "firebase-admin": "^13.1.0"
+  }
+}

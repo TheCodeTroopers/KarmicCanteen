@@ -1,10 +1,53 @@
 // src/components/Admin/ReportsDashboard.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { collection, getDocs, doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '../../firebase/config';
 import { getLocalDateString } from '../../utils/dateUtils';
 import { Calendar, RefreshCw, Download, BarChart3, Coffee, Soup, Cookie, ClipboardList, Users, History, Check, X, CheckCircle2, AlertTriangle, ChevronLeft, ChevronRight } from 'lucide-react';
 import './ReportsDashboard.css';
+
+const MEAL_SECTIONS = [
+  { key: 'breakfast', label: 'Breakfast', Icon: Coffee },
+  { key: 'lunch', label: 'Lunch', Icon: Soup },
+  { key: 'snacks', label: 'Snacks', Icon: Cookie }
+];
+
+// Tallies how many employees ordered each item, per meal, most ordered first.
+// Names differing only by case or surrounding spaces count as one item.
+const countItemsByMeal = (participants) => {
+  const list = Array.isArray(participants) ? participants : [];
+  const result = {};
+
+  MEAL_SECTIONS.forEach(({ key }) => {
+    const tally = new Map();
+
+    list.forEach((participant) => {
+      const items = Array.isArray(participant?.[key]) ? participant[key] : [];
+
+      items.forEach((item) => {
+        const rawName = typeof item === 'object' && item !== null ? item.name : item;
+        if (typeof rawName !== 'string') return;
+
+        const name = rawName.trim();
+        if (!name) return;
+
+        const id = name.toLowerCase();
+        const entry = tally.get(id) || { name, count: 0 };
+        entry.count += 1;
+        tally.set(id, entry);
+      });
+    });
+
+    result[key] = [...tally.values()].sort(
+      (a, b) => b.count - a.count || a.name.localeCompare(b.name)
+    );
+  });
+
+  return result;
+};
+
+// Saved reports hold item arrays; older ones may hold true/false per meal.
+const hasOrdered = (meal) => (Array.isArray(meal) ? meal.length > 0 : Boolean(meal));
 
 const ReportsDashboard = () => {
   const [selectedDate, setSelectedDate] = useState('');
@@ -13,8 +56,9 @@ const ReportsDashboard = () => {
   const [message, setMessage] = useState({ type: '', text: '' });
   const [allReports, setAllReports] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
-  const PARTICIPANTS_PER_PAGE = 1;
+  const PARTICIPANTS_PER_PAGE = 20;
   const [menu, setMenu] = useState(null);
+  const itemCounts = useMemo(() => countItemsByMeal(report?.participants), [report]);
 
   useEffect(() => {
     // Set tomorrow as default (since employees select for tomorrow)
@@ -25,6 +69,7 @@ const ReportsDashboard = () => {
   }, []);
 
   useEffect(() => {
+    setCurrentPage(1);
     if (selectedDate) {
       loadReportForDate(selectedDate);
     }
@@ -146,6 +191,7 @@ const ReportsDashboard = () => {
       await setDoc(reportRef, reportData);
 
       setReport(reportData);
+      setCurrentPage(1);
       showMessage('success', hasSelections ? 'Report generated successfully!' : 'No meal selections found for this date.');
       fetchAllReports();
     } catch (error) {
@@ -192,6 +238,16 @@ const ReportsDashboard = () => {
     csvRows.push(['Lunch Count', lunchCount]);
     csvRows.push(['Snacks Count', snacksCount]);
     csvRows.push(['Total Meals', breakfastCount + lunchCount + snacksCount]);
+
+    // Add item-wise order counts
+    csvRows.push([]);
+    csvRows.push(['ITEM-WISE ORDERS']);
+    csvRows.push(['Meal', 'Item', 'Orders']);
+    MEAL_SECTIONS.forEach(({ key, label }) => {
+      itemCounts[key].forEach(({ name, count }) => {
+        csvRows.push([label, `"${name.replace(/"/g, '""')}"`, count]);
+      });
+    });
 
     const csvContent = csvRows.map(row => row.join(',')).join('\n');
     const blob = new Blob([csvContent], { type: 'text/csv' });
@@ -339,6 +395,29 @@ const goToPreviousPage = () => {
             </div>
           </div>
 
+          <div className="menu-reference">
+            <h3><ClipboardList size={18} className="inline-icon" />Item-wise Orders</h3>
+            <div className="menu-items-display">
+              {MEAL_SECTIONS.map((meal) => (
+                <div className="menu-column" key={meal.key}>
+                  <h4><meal.Icon size={16} className="inline-icon" />{meal.label}</h4>
+                  <ul>
+                    {itemCounts[meal.key].length > 0 ? (
+                      itemCounts[meal.key].map(({ name, count }) => (
+                        <li className="item-count-row" key={name}>
+                          <span>{name}</span>
+                          <strong>{count} {count === 1 ? 'order' : 'orders'}</strong>
+                        </li>
+                      ))
+                    ) : (
+                      <li>No orders</li>
+                    )}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          </div>
+
           {menu && (
             <div className="menu-reference">
               <h3><ClipboardList size={18} className="inline-icon" />Menu for this day</h3>
@@ -380,23 +459,23 @@ const goToPreviousPage = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {report.participants.map((p, index) => (
+                    {paginatedParticipants.map((p, index) => (
                       <tr key={index}>
-                        <td>{index + 1}</td>
+                        <td>{(currentPage - 1) * PARTICIPANTS_PER_PAGE + index + 1}</td>
                         <td>{p.email}</td>
                         <td>
-                          <span className={`badge ${p.breakfast ? 'yes' : 'no'}`}>
-                            {p.breakfast ? <Check size={14} style={{ verticalAlign: '-0.15em' }} aria-label="Yes" /> : <X size={14} style={{ verticalAlign: '-0.15em' }} aria-label="No" />}
+                          <span className={`badge ${hasOrdered(p.breakfast) ? 'yes' : 'no'}`}>
+                            {hasOrdered(p.breakfast) ? <Check size={14} style={{ verticalAlign: '-0.15em' }} aria-label="Yes" /> : <X size={14} style={{ verticalAlign: '-0.15em' }} aria-label="No" />}
                           </span>
                         </td>
                         <td>
-                          <span className={`badge ${p.lunch ? 'yes' : 'no'}`}>
-                            {p.lunch ? <Check size={14} style={{ verticalAlign: '-0.15em' }} aria-label="Yes" /> : <X size={14} style={{ verticalAlign: '-0.15em' }} aria-label="No" />}
+                          <span className={`badge ${hasOrdered(p.lunch) ? 'yes' : 'no'}`}>
+                            {hasOrdered(p.lunch) ? <Check size={14} style={{ verticalAlign: '-0.15em' }} aria-label="Yes" /> : <X size={14} style={{ verticalAlign: '-0.15em' }} aria-label="No" />}
                           </span>
                         </td>
                         <td>
-                          <span className={`badge ${p.snacks ? 'yes' : 'no'}`}>
-                            {p.snacks ? <Check size={14} style={{ verticalAlign: '-0.15em' }} aria-label="Yes" /> : <X size={14} style={{ verticalAlign: '-0.15em' }} aria-label="No" />}
+                          <span className={`badge ${hasOrdered(p.snacks) ? 'yes' : 'no'}`}>
+                            {hasOrdered(p.snacks) ? <Check size={14} style={{ verticalAlign: '-0.15em' }} aria-label="Yes" /> : <X size={14} style={{ verticalAlign: '-0.15em' }} aria-label="No" />}
                           </span>
                         </td>
                       </tr>
