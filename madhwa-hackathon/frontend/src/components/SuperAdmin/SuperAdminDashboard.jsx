@@ -13,6 +13,7 @@ import {
   UserRound,
   Shield,
   Trash2,
+  Upload,
 } from 'lucide-react';
 import {
   collection,
@@ -28,6 +29,7 @@ import AddEmployeeModal from './AddEmployeeModal';
 import EditEmployeeModal from './EditEmployeeModal';
 import DeleteEmployeeModal from './DeleteEmployeeModal';
 import EmployeeDetailsModal from './EmployeeDetailsModal';
+import BulkUploadModal from './BulkUploadModal';
 import './SuperAdminDashboard.css';
 
 const SuperAdminDashboard = () => {
@@ -107,6 +109,7 @@ const SuperAdminDashboard = () => {
 
   // Modals state
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
   const [employeeToEdit, setEmployeeToEdit] = useState(null);
   const [employeeToDelete, setEmployeeToDelete] = useState(null);
   const [selectedEmployee, setSelectedEmployee] = useState(null);
@@ -230,6 +233,39 @@ const SuperAdminDashboard = () => {
     }
   };
 
+  // 6. Bulk Insert Employees via adminApi.bulkCreateUsers
+  const handleBulkInsert = async (records) => {
+    setActionLoading(true);
+    try {
+      const summary = await adminApi.bulkCreateUsers(records);
+      if (summary.succeeded > 0) {
+        showNotice(
+          'success',
+          `Bulk insertion complete: ${summary.succeeded} employee account${summary.succeeded !== 1 ? 's' : ''} created.`
+        );
+      } else {
+        showNotice('error', 'Bulk insertion finished with 0 accounts created.');
+      }
+      return summary;
+    } catch (err) {
+      console.error('Failed bulk insertion:', err);
+      const errorMsg = err.message || 'Failed to complete bulk insertion.';
+      showNotice('error', errorMsg);
+      return {
+        succeeded: 0,
+        failed: records.length,
+        details: records.map((r) => ({
+          name: r.name,
+          email: r.email,
+          success: false,
+          message: errorMsg
+        }))
+      };
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   // 6. Edit Employee via adminApi.updateUser
   const handleSaveEditEmployee = async (formData) => {
     if (actionLoading) return;
@@ -340,7 +376,24 @@ const SuperAdminDashboard = () => {
                 <div className="search-input-wrapper"><Search size={18} className="search-icon" /><input type="text" className="search-input" placeholder="Search by name, email, employee ID, or department..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} disabled={loading || !!error} aria-label="Search employees" />{searchQuery && <button type="button" className="clear-search-btn" onClick={() => setSearchQuery('')} aria-label="Clear search"><X size={14} /></button>}</div>
                 <div className="department-filter-wrapper"><select className="dept-filter-select" value={selectedDepartment} onChange={(e) => setSelectedDepartment(e.target.value)} disabled={loading || !!error} aria-label="Filter by department"><option value="All">All Departments</option>{DEPARTMENTS.map((dept) => <option key={dept} value={dept}>{dept}</option>)}</select></div>
               </div>
-              <div className="toolbar-actions"><button type="button" className="btn btn-primary" onClick={() => setIsAddModalOpen(true)} disabled={actionLoading}><UserPlus size={16} /><span>Add Employee</span></button></div>
+              <div className="toolbar-actions">
+                <button
+                  type="button"
+                  className="btn btn-secondary bulk-upload-btn"
+                  onClick={() => setIsBulkModalOpen(true)}
+                  disabled={actionLoading}
+                >
+                  <Upload size={16} /><span>Bulk Upload</span>
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={() => setIsAddModalOpen(true)}
+                  disabled={actionLoading}
+                >
+                  <UserPlus size={16} /><span>Add Employee</span>
+                </button>
+              </div>
             </div>
             {loading && <div className="superadmin-state-container loading-state"><div className="spinner"></div><p className="state-title">Loading employees from Firestore...</p><span className="state-subtitle">Syncing live directory</span></div>}
             {!loading && error && <div className="superadmin-state-container error-state"><div className="state-icon-badge error"><AlertCircle size={32} /></div><h3 className="state-title">Unable to Load Employees</h3><p className="state-subtitle">{error}</p><button type="button" className="btn btn-secondary retry-btn" onClick={retryFetch}><RefreshCw size={14} /> Retry</button></div>}
@@ -367,6 +420,7 @@ const SuperAdminDashboard = () => {
 
       <EmployeeDetailsModal isOpen={!!selectedEmployee} employee={selectedEmployee} onClose={() => setSelectedEmployee(null)} onEdit={(employee) => { setSelectedEmployee(null); setEmployeeToEdit(employee); }} />
       <AddEmployeeModal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} onAddEmployee={handleAddEmployee} loading={actionLoading} existingEmployees={employees} />
+      <BulkUploadModal isOpen={isBulkModalOpen} onClose={() => setIsBulkModalOpen(false)} onBulkInsert={handleBulkInsert} existingEmployees={employees} inserting={actionLoading} />
       <EditEmployeeModal isOpen={!!employeeToEdit} employee={employeeToEdit} onClose={() => setEmployeeToEdit(null)} onSave={handleSaveEditEmployee} loading={actionLoading} existingEmployees={employees} />
       <DeleteEmployeeModal isOpen={!!employeeToDelete} employee={employeeToDelete} onClose={() => setEmployeeToDelete(null)} onConfirm={handleConfirmDelete} loading={actionLoading} />
 
