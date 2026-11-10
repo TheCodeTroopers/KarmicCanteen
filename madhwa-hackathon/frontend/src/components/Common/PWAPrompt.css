@@ -221,3 +221,87 @@
     max-width: calc(100% - 32px);
   }
 }
+
+
+/* ========================================
+   PWA POPUPS - LIGHT THEME OVERRIDES
+======================================== */
+
+/* Offline ready and update notification */
+.pwa-toast {
+  background: #ffffff;
+  color: #172033;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 10px 25px rgba(15, 23, 42, 0.15);
+}
+
+.pwa-toast-content {
+  color: #172033;
+}
+
+.pwa-toast-content strong {
+  color: #172033;
+}
+
+.pwa-toast-content span {
+  color: #172033;
+}
+
+.pwa-toast-content p {
+  color: #64748b;
+}
+
+/* Install application popup */
+.pwa-install-banner {
+  background: #ffffff;
+  color: #172033;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.15);
+}
+
+.pwa-install-info strong {
+  color: #172033;
+}
+
+.pwa-install-info p {
+  color: #64748b;
+}
+
+/* Install button */
+.pwa-btn-primary {
+  background: #2563eb;
+  color: #ffffff;
+}
+
+.pwa-btn-primary:hover {
+  background: #1d4ed8;
+  filter: none;
+}
+
+/* Not Now button */
+.pwa-btn-dismiss {
+  background: #f1f5f9;
+  color: #475569;
+  border: 1px solid #e2e8f0;
+}
+
+.pwa-btn-dismiss:hover {
+  background: #e2e8f0;
+  color: #172033;
+}
+
+/* Close button */
+.pwa-btn-close {
+  color: #64748b;
+}
+
+.pwa-btn-close:hover {
+  background: #f1f5f9;
+  color: #172033;
+}
+
+/* Keep success icon green */
+.pwa-icon-success {
+  color: #059669;
+}
+
