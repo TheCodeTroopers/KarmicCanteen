@@ -169,6 +169,18 @@
     color: var(--text);
   }
   
+  /* Item-wise order counts */
+  .menu-column li.item-count-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .item-count-row strong {
+    white-space: nowrap;
+  }
+
   /* Participants Table */
   .participants-table {
     background: var(--surface);
