@@ -206,10 +206,63 @@ export async function updateUser(payload) {
   return data;
 }
 
+/**
+ * Bulk-creates multiple employee accounts in a single request.
+ *
+ * @param {Array<Object>} employees - Array of { name, email, employeeId, department, role }
+ * @returns {Promise<{ succeeded: number, failed: number, details: Array }>}
+ */
+export async function bulkCreateUsers(employees) {
+  if (!Array.isArray(employees) || employees.length === 0) {
+    throw new Error('At least one employee record is required.');
+  }
+
+  const token = await getIdToken();
+  const baseUrl = getAdminApiBaseUrl();
+  const url = `${baseUrl}/api/admin/bulk-create-users`;
+
+  let response;
+  try {
+    response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify({ employees })
+    });
+  } catch {
+    if (import.meta.env.DEV) {
+      throw new Error(
+        'Could not reach the local admin server at localhost:5001. Please ensure the dev server is running (node server/devServer.js).'
+      );
+    }
+    throw new Error('Network error. Failed to communicate with the admin server.');
+  }
+
+  let data;
+  try {
+    data = await response.json();
+  } catch {
+    data = null;
+  }
+
+  if (!response.ok) {
+    const errorMsg = data?.error?.message || data?.message || `Request failed with status ${response.status}`;
+    const err = new Error(errorMsg);
+    err.code = data?.error?.code || data?.code || 'internal';
+    err.status = response.status;
+    throw err;
+  }
+
+  return data?.data || data;
+}
+
 const adminApi = {
   createUser,
   deleteUser,
   updateUser,
+  bulkCreateUsers,
   getAdminApiBaseUrl
 };
 

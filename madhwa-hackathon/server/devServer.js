@@ -20,6 +20,7 @@ const {
   createUserAccountCore,
   deleteUserAccountCore,
   updateUserAccountCore,
+  bulkCreateUserAccountsCore,
   AppError
 } = require('./core/userManager');
 
@@ -140,6 +141,33 @@ app.post(['/api/admin/update-user', '/api/admin/update-user/'], async (req, res)
   }
 });
 
+/**
+ * POST /api/admin/bulk-create-users
+ * Bulk creates multiple employee accounts in Firebase Auth + Firestore
+ */
+app.post(['/api/admin/bulk-create-users', '/api/admin/bulk-create-users/'], async (req, res) => {
+  try {
+    const idToken = extractBearerToken(req);
+    const employees = req.body?.employees || req.body;
+    const result = await bulkCreateUserAccountsCore(idToken, employees);
+    return res.status(200).json({
+      success: true,
+      ...result,
+      data: result
+    });
+  } catch (err) {
+    console.error('Error in /api/admin/bulk-create-users:', err.message);
+    const status = err.status || 500;
+    return res.status(status).json({
+      success: false,
+      error: {
+        code: err.code || 'internal',
+        message: err.message || 'An internal error occurred.'
+      }
+    });
+  }
+});
+
 // Fallback 404
 app.use((req, res) => {
   res.status(404).json({
@@ -159,7 +187,8 @@ if (require.main === module) {
     console.log(`   - GET  http://localhost:${PORT}/api/health`);
     console.log(`   - POST http://localhost:${PORT}/api/admin/create-user`);
     console.log(`   - POST http://localhost:${PORT}/api/admin/update-user`);
-    console.log(`   - POST http://localhost:${PORT}/api/admin/delete-user\n`);
+    console.log(`   - POST http://localhost:${PORT}/api/admin/delete-user`);
+    console.log(`   - POST http://localhost:${PORT}/api/admin/bulk-create-users\n`);
   });
 }
 
