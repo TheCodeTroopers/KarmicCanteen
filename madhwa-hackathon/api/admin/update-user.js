@@ -19,7 +19,8 @@ const { updateUserAccountCore, AppError } = require('../../server/core/userManag
 const ALLOWED_ORIGINS = [
   'http://localhost:5173',
   'http://localhost:4173',
-  // Add production domain e.g.: 'https://karmic-canteen.vercel.app'
+  'https://karmic-canteen.vercel.app',
+  'https://karmic-canteen-web.vercel.app/'
 ];
 
 /**
