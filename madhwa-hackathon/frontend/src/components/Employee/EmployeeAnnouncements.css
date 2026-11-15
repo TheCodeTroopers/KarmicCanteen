@@ -68,17 +68,36 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  min-height: 36px;
   border: none;
   border-radius: var(--radius-sm);
   background: transparent;
   color: var(--text-tertiary);
   cursor: pointer;
   transition: all var(--transition-normal);
+  -webkit-tap-highlight-color: transparent;
 }
 
 .announcement-dismiss:hover {
   background: rgba(26, 109, 204, 0.08);
   color: var(--accent-primary);
+}
+
+@media (max-width: 480px) {
+  .announcement-banner {
+    padding: 12px;
+    gap: 10px;
+  }
+
+  .announcement-icon {
+    width: 32px;
+    height: 32px;
+  }
+
+  .announcement-title-row strong {
+    font-size: 14px;
+  }
 }

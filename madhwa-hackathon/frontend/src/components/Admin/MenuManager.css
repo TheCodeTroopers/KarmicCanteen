@@ -242,29 +242,35 @@ box-shadow:0 20px 40px rgba(0,0,0,.08);
     background:#eef5ff;
     border:1px solid #cfe1ff;
     padding:8px 14px;
-    border-radius:999px;
+    border-radius:12px;
     font-size:14px;
     font-weight:500;
     color:#2563eb;
-    transition:.3s;
+    transition:.25s ease;
 }
 .item-tag:hover{
     background:#dbeafe;
-    transform:scale(1.05);
+    border-color:#93c5fd;
 }
   
  .remove-btn{
     transition:all .25s ease;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    min-width:32px;
+    min-height:32px;
+    border-radius:6px;
+    border:none;
+    background:transparent;
+    cursor:pointer;
+    color:#ef4444;
 }
 
 .remove-btn:hover{
     background:#ffe5e8;
-    transform:rotate(90deg) scale(1.1);
+    color:#dc2626;
 }
-  
-  .remove-btn:hover {
-    background: rgba(192, 21, 47, 0.1);
-  }
   
   /* Save Section */
   .save-section {
@@ -392,29 +398,6 @@ box-shadow:0 20px 40px rgba(0,0,0,.08);
 
 }
   
-  /* Responsive */
-  @media (max-width: 768px) {
-    .editor-header {
-      flex-direction: column;
-    }
-  
-    .date-selector input[type="date"] {
-      width: 100%;
-    }
-  
-    .menu-card-small {
-      flex-direction: column;
-      align-items: flex-start;
-    }
-  
-    .menu-actions {
-      width: 100%;
-    }
-  
-    .menu-actions button {
-      flex: 1;
-    }
-  }
 .pagination-controls {
   display: flex;
   align-items: center;
@@ -556,3 +539,123 @@ box-shadow:0 20px 40px rgba(0,0,0,.08);
 .availability-toggle input:checked + .toggle-slider::before {
   transform: translateX(19px);
 }
+
+  /* Responsive */
+  @media (max-width: 768px) {
+    .menu-manager {
+      padding: 16px;
+      border-radius: 14px;
+    }
+
+    .menu-editor {
+      padding: 16px;
+    }
+
+    .editor-header {
+      flex-direction: column;
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .date-selector input[type="date"] {
+      width: 100%;
+    }
+
+    .menu-stats {
+      width: 100%;
+      flex-wrap: wrap;
+      justify-content: space-between;
+    }
+
+    .menu-stats button {
+      flex: 1 1 auto;
+    }
+
+    .menu-card-small {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+
+    .menu-actions {
+      width: 100%;
+    }
+
+    .menu-actions button {
+      flex: 1;
+    }
+
+    .menu-item-row {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 10px;
+      padding: 12px;
+      border-radius: 12px;
+    }
+
+    .menu-item-name {
+      font-size: 15px;
+      font-weight: 600;
+      word-break: break-word;
+    }
+
+    .menu-item-controls {
+      width: 100%;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 8px;
+      padding-top: 6px;
+      border-top: 1px dashed rgba(37, 99, 235, 0.2);
+    }
+  }
+
+  @media (max-width: 480px) {
+    .menu-manager {
+      padding: 12px;
+    }
+
+    .menu-editor {
+      padding: 12px;
+    }
+
+    .meal-section {
+      padding: 16px 12px;
+    }
+
+    .add-item-form {
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .add-item-form button {
+      width: 100%;
+      min-height: 42px;
+    }
+
+    .availability-text {
+      min-width: unset;
+      font-size: 12px;
+    }
+
+    .quantity-input {
+      width: 52px;
+      height: 30px;
+      font-size: 13px;
+    }
+
+    .pagination-controls {
+      gap: 8px;
+      padding: 12px 4px;
+      flex-wrap: wrap;
+    }
+
+    .pagination-controls button {
+      padding: 8px 14px;
+      font-size: 12px;
+    }
+
+    .pagination-info {
+      font-size: 12px;
+      min-width: 80px;
+      padding: 6px 10px;
+    }
+  }

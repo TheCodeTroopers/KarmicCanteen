@@ -541,7 +541,7 @@ const EmployeeDashboard = () => {
       )}
 
       <div className="date-card">
-        <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '15px'}}>
+        <div className="date-card-inner">
           <div>
             <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: 'rgba(255, 255, 255, 0.18)', padding: '2px 10px', borderRadius: '12px', fontSize: '11px', fontWeight: '700', letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: '6px' }}>
               <span>{viewMode === 'daily' ? 'PRE-ORDER FOR TOMORROW' : 'UPCOMING WEEK'}</span>
@@ -557,7 +557,7 @@ const EmployeeDashboard = () => {
               </p>
             )}
           </div>
-          <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+          <div className="date-card-controls">
             <div className="default-menu-toggle" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <label htmlFor="showDefaultMenu" style={{ fontSize: '13px', fontWeight: '600', color: 'white', cursor: 'pointer' }}>
                 Show Default Menu

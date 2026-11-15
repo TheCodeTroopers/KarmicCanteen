@@ -214,11 +214,40 @@
 }
 
 @media (max-width: 640px) {
-  .pwa-install-banner,
+  .pwa-install-banner {
+    left: 12px;
+    right: 12px;
+    bottom: 12px;
+    max-width: calc(100% - 24px);
+    padding: 12px 14px;
+    gap: 10px;
+  }
+
   .pwa-toast {
-    left: 16px;
-    right: 16px;
-    max-width: calc(100% - 32px);
+    left: 12px;
+    right: 12px;
+    bottom: 92px;
+    max-width: calc(100% - 24px);
+    padding: 12px 14px;
+    gap: 10px;
+  }
+}
+
+@media (max-width: 380px) {
+  .pwa-install-banner {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .pwa-install-actions {
+    width: 100%;
+    justify-content: stretch;
+  }
+
+  .pwa-install-actions .pwa-btn-primary,
+  .pwa-install-actions .pwa-btn-dismiss {
+    flex: 1;
+    min-height: 40px;
   }
 }
 

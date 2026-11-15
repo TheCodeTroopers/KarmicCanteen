@@ -222,6 +222,45 @@
   color: white;
 }
 
+.date-card-inner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+  position: relative;
+  z-index: 1;
+}
+
+.date-card-controls {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 600px) {
+  .date-card-inner {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 14px;
+  }
+
+  .date-card-controls {
+    justify-content: space-between;
+    width: 100%;
+  }
+
+  .view-toggle {
+    flex: 1;
+  }
+
+  .toggle-btn {
+    flex: 1;
+    justify-content: center;
+  }
+}
+
 /* View Toggle Buttons */
 .view-toggle {
   display: flex;
@@ -1020,15 +1059,18 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 8px 14px;
+  padding: 9px 16px;
+  min-height: 40px;
   border-radius: 999px;
   border: 1.5px solid #fed7aa;
   background: #fff7ed;
   color: #c2410c;
-  font-size: 13px;
+  font-size: 13.5px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.18s ease;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .item-chip:hover:not(:disabled):not(.selected) {

@@ -307,13 +307,20 @@ body {
   }
   
   .btn {
-    padding: 8px 16px;
+    min-height: 42px;
+    padding: 10px 18px;
+    font-size: var(--font-size-sm);
+  }
+
+  .btn-sm {
+    min-height: 36px;
+    padding: 6px 12px;
     font-size: var(--font-size-xs);
   }
 }
 
 @media (max-width: 480px) {
   .main-content {
-    padding: var(--space-sm);
+    padding: 12px;
   }
 }
