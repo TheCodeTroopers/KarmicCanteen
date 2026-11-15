@@ -262,3 +262,35 @@
     text-align: center;
   }
 }
+
+@media (max-width: 480px) {
+  .settings-header h2 {
+    font-size: 22px;
+  }
+
+  .settings-card {
+    padding: 14px;
+    border-radius: 10px;
+  }
+
+  .time-display {
+    padding: 16px;
+    gap: 12px;
+  }
+
+  .time-icon {
+    width: 52px;
+    height: 52px;
+    font-size: 32px;
+  }
+
+  .btn-large {
+    width: 100%;
+    min-width: 0;
+    padding: 12px 20px;
+  }
+
+  .info-box {
+    padding: 14px;
+  }
+}

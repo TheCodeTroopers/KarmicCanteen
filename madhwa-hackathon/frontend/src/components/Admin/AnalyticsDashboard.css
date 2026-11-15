@@ -348,6 +348,21 @@
     padding: var(--space-sm);
   }
 
+  .analytics-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .analytics-header > div {
+    width: 100%;
+  }
+
+  .refresh-btn {
+    width: 100%;
+    justify-content: center;
+  }
+
   .stat-card {
     padding: var(--space-md);
   }

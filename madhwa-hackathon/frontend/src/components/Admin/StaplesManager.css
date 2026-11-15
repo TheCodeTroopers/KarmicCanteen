@@ -78,6 +78,46 @@
   }
 }
 
+@media (max-width: 480px) {
+  .staples-editor {
+    padding: 14px;
+    border-radius: 14px;
+  }
+
+  .staples-intro {
+    padding: 14px;
+    flex-direction: column;
+  }
+
+  .staple-section {
+    padding: 12px;
+  }
+
+  .staple-section .add-item-form {
+    flex-direction: column;
+  }
+
+  .staple-section .add-item-form button {
+    width: 100%;
+    min-height: 40px;
+  }
+
+  .staples-editor .btn-large {
+    width: 100%;
+  }
+
+  .staple-item-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .staple-item-controls {
+    width: 100%;
+    justify-content: space-between;
+  }
+}
+
 .staple-section {
   border: 1px solid #f1f5f9;
   border-radius: 16px;
@@ -177,13 +217,13 @@
   background: #fed7aa;
   color: #9a3412;
   border: none;
-  width: 20px;
-  height: 20px;
+  min-width: 28px;
+  min-height: 28px;
   border-radius: 50%;
   font-size: 14px;
   line-height: 1;
   cursor: pointer;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
   transition: background 0.2s ease;
