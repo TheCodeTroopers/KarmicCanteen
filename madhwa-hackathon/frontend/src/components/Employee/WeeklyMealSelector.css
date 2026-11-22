@@ -577,3 +577,49 @@
 .history-meal-items {
   color: var(--text-primary);
 }
+
+
+.weekly-meal-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px;
+  border-radius: 8px;
+  background: var(--bg-secondary, rgba(128, 128, 128, 0.08));
+}
+
+.weekly-assigned-menu {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.weekly-meal-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.weekly-meal-toggle input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--accent-primary);
+}
+
+.weekly-assigned-menu .no-items {
+  font-style: italic;
+}
+
+@media (max-width: 480px) {
+  .weekly-meal-option {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}

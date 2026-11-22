@@ -25,14 +25,18 @@ const mealTimings = {
   dinner: { start: '8:00 PM', end: '9:30 PM' }
 };
 
-const EMPTY_DAY_SELECTION = { breakfast: [], lunch: [], snacks: [], dinner: [] };
+const EMPTY_DAY_SELECTION = {
+  breakfast: false,
+  lunch: false,
+  snacks: false,
+  dinner: false
+};
 
-const WeeklyMealSelector = ({ showDefaultMenu, setShowDefaultMenu, onSaveSuccess }) => {
+const WeeklyMealSelector = ({ onSaveSuccess }) => {
   const { currentUser } = useAuth();
   const [weekDays, setWeekDays] = useState([]);
   const [weeklySelections, setWeeklySelections] = useState({});
   const [weeklyMenus, setWeeklyMenus] = useState({});
-  const [staples, setStaples] = useState(EMPTY_DAY_SELECTION);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
@@ -77,17 +81,13 @@ const WeeklyMealSelector = ({ showDefaultMenu, setShowDefaultMenu, onSaveSuccess
     const initialSelections = {};
     days.forEach(day => {
       initialSelections[day.date] = {
-        breakfast: [],
-        lunch: [],
-        snacks: [],
-        dinner: []
+        ...EMPTY_DAY_SELECTION
       };
     });
 
     setWeeklySelections(initialSelections);
 
     await fetchDeadlineSettings();
-    await loadStaples();
     await loadWeeklyData(days);
     setLoading(false);
   };
@@ -116,58 +116,6 @@ const WeeklyMealSelector = ({ showDefaultMenu, setShowDefaultMenu, onSaveSuccess
     return `${displayHour}:${String(deadlineMinute).padStart(2, '0')} ${period}`;
   };
 
-  const loadStaples = async () => {
-    try {
-      let ref = doc(db, 'menus', 'default');
-      let data;
-      let exists = false;
-      let fromCache = false;
-
-      // Try menus/default
-      ({ data, exists, fromCache } = await getDocWithCache(
-        ref,
-        docCacheKey('menus', 'default')
-      ));
-
-      if (fromCache) setOffline(true);
-
-      // Try defaultMenu/config
-      if (!exists) {
-        ref = doc(db, 'defaultMenu', 'config');
-
-        ({ data, exists, fromCache } = await getDocWithCache(
-          ref,
-          docCacheKey('defaultMenu', 'config')
-        ));
-
-        if (fromCache) setOffline(true);
-      }
-
-      // Try dailyStaples/config
-      if (!exists) {
-        ref = doc(db, 'dailyStaples', 'config');
-
-        ({ data, exists, fromCache } = await getDocWithCache(
-          ref,
-          docCacheKey('dailyStaples', 'config')
-        ));
-
-        if (fromCache) setOffline(true);
-      }
-
-      if (exists) {
-        setStaples({
-          breakfast: data.breakfast || [],
-          lunch: data.lunch || [],
-          snacks: data.snacks || [],
-          dinner: data.dinner || [],
-        });
-      }
-    } catch (error) {
-      console.error('Error loading default menu:', error);
-    }
-  };
-
   const fetchHistory = async () => {
     setHistoryLoading(true);
     setShowHistory(true);
@@ -190,15 +138,39 @@ const WeeklyMealSelector = ({ showDefaultMenu, setShowDefaultMenu, onSaveSuccess
 
         if (selectionResult.exists) {
           const data = selectionResult.data;
-          const hasAnyItems = MEAL_TYPES.some(m => (data[m.key] || []).length > 0);
+          const hasAnyItems = MEAL_TYPES.some(m =>
+            Array.isArray(data[m.key])
+              ? data[m.key].length > 0
+              : data[m.key] === true
+          );
           if (hasAnyItems) {
             results.push({
               date: dateStr,
-              dayLabel: pastDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }),
-              breakfast: data.breakfast || [],
-              lunch: data.lunch || [],
-              snacks: data.snacks || [],
-              dinner: data.dinner || [],
+
+              dayLabel: pastDate.toLocaleDateString(
+                'en-US',
+                {
+                  weekday: 'short',
+                  month: 'short',
+                  day: 'numeric'
+                }
+              ),
+
+              breakfast: Array.isArray(data.breakfast)
+                ? data.breakfast.length > 0
+                : data.breakfast === true,
+
+              lunch: Array.isArray(data.lunch)
+                ? data.lunch.length > 0
+                : data.lunch === true,
+
+              snacks: Array.isArray(data.snacks)
+                ? data.snacks.length > 0
+                : data.snacks === true,
+
+              dinner: Array.isArray(data.dinner)
+                ? data.dinner.length > 0
+                : data.dinner === true
             });
           }
         }
@@ -239,12 +211,27 @@ const WeeklyMealSelector = ({ showDefaultMenu, setShowDefaultMenu, onSaveSuccess
         if (selectionResult.fromCache) setOffline(true);
         if (selectionResult.exists) {
           const data = selectionResult.data;
-          selectionsData[day.date] = {
-            breakfast: Array.isArray(data.breakfast) ? data.breakfast : [],
-            lunch: Array.isArray(data.lunch) ? data.lunch : [],
-            snacks: Array.isArray(data.snacks) ? data.snacks : [],
-            dinner: Array.isArray(data.dinner) ? data.dinner : [],
-          };
+          if (selectionResult.exists) {
+            const data = selectionResult.data;
+
+            selectionsData[day.date] = {
+              breakfast: Array.isArray(data.breakfast)
+                ? data.breakfast.length > 0
+                : data.breakfast === true,
+
+              lunch: Array.isArray(data.lunch)
+                ? data.lunch.length > 0
+                : data.lunch === true,
+
+              snacks: Array.isArray(data.snacks)
+                ? data.snacks.length > 0
+                : data.snacks === true,
+
+              dinner: Array.isArray(data.dinner)
+                ? data.dinner.length > 0
+                : data.dinner === true
+            };
+          }
         }
       }
 
@@ -272,26 +259,6 @@ const WeeklyMealSelector = ({ showDefaultMenu, setShowDefaultMenu, onSaveSuccess
     return { name: String(item || '').trim(), available: true, quantity: null };
   };
 
-  const getAvailableItems = (dateStr, mealType) => {
-    const rawMenuItems = weeklyMenus[dateStr]?.[mealType] || [];
-    const rawStaplesItems = showDefaultMenu ? (staples[mealType] || []) : [];
-    const combined = [
-      ...rawStaplesItems.map(normalizeMenuItem),
-      ...rawMenuItems.map(normalizeMenuItem)
-    ].filter(item => item.name && item.available);
-
-    const uniqueItems = [];
-    const seen = new Set();
-    combined.forEach(item => {
-      const key = item.name.toLowerCase();
-      if (!seen.has(key)) {
-        seen.add(key);
-        uniqueItems.push(item);
-      }
-    });
-    return uniqueItems;
-  };
-
   const isEditAllowed = (dateStr) => {
     const mealDate = new Date(dateStr + 'T00:00:00');
     const now = new Date();
@@ -301,80 +268,118 @@ const WeeklyMealSelector = ({ showDefaultMenu, setShowDefaultMenu, onSaveSuccess
     return now < cutoff;
   };
 
-  const handleItemToggle = (dateStr, mealType, itemName) => {
-    const currentItems = weeklySelections[dateStr]?.[mealType] || [];
-    const alreadySelected = currentItems.includes(itemName);
+  const handleMealToggle = (dateStr, mealType) => {
     const editAllowed = isEditAllowed(dateStr);
 
-    // Block adding new items after the deadline, but still allow removing.
-    if (!editAllowed && !alreadySelected) {
-      const mealDate = new Date(dateStr + 'T00:00:00');
+    if (!editAllowed) {
+      const mealDate = new Date(`${dateStr}T00:00:00`);
       const cutoff = new Date(mealDate);
+
       cutoff.setDate(mealDate.getDate() - 1);
-      showMessage('error', `Deadline passed! You can only add items before ${formatDeadlineTime()} on ${cutoff.toLocaleDateString()}`);
+
+      showMessage(
+        'error',
+        `Deadline passed! Changes are allowed until ${formatDeadlineTime()} on ${cutoff.toLocaleDateString()}.`
+      );
+
       return;
     }
 
     setWeeklySelections(prev => {
       const dayData = prev[dateStr] || { ...EMPTY_DAY_SELECTION };
-      const items = dayData[mealType] || [];
-      const updatedItems = alreadySelected
-        ? items.filter(i => i !== itemName)
-        : [...items, itemName];
 
       return {
         ...prev,
         [dateStr]: {
           ...dayData,
-          [mealType]: updatedItems,
-        },
+          [mealType]: !dayData[mealType]
+        }
       };
     });
   };
 
-  const handleSaveWeekly = async () => {
-    try {
-      setSaving(true);
-      showMessage('info', 'Saving weekly selections...');
 
-      let savedCount = 0;
-      const nextSavedDates = new Set(savedDates);
-      for (const day of weekDays) {
-        const dateStr = day.date;
-        const selections = weeklySelections[dateStr];
-        if (!selections) continue;
+const handleSaveWeekly = async () => {
+  try {
+    setSaving(true);
+    showMessage('info', 'Saving weekly meal preferences...');
 
-        // Skip empty days that were never saved, so they don't show up as participants.
-        const hasAnyItems = MEAL_TYPES.some(m => (selections[m.key] || []).length > 0);
-        if (!hasAnyItems && !savedDates.has(dateStr)) continue;
+    let savedCount = 0;
+    const nextSavedDates = new Set(savedDates);
 
-        const selectionRef = doc(db, 'mealSelections', dateStr, 'users', currentUser.uid);
-        const dayData = {
-          ...selections,
-          date: dateStr,
-          status: 'Confirmed',
-          userId: currentUser.uid,
-          email: currentUser.email,
-          timestamp: new Date().toISOString()
-        };
-        await setDoc(selectionRef, dayData);
-        await cacheDocument(docCacheKey('mealSelections', dateStr, 'users', currentUser.uid), dayData);
-        nextSavedDates.add(dateStr);
-        savedCount++;
+    for (const day of weekDays) {
+      const dateStr = day.date;
+      const selections = weeklySelections[dateStr];
+
+      if (!selections) continue;
+
+      const hasAnyMeals = MEAL_TYPES.some(
+        meal => selections[meal.key] === true
+      );
+
+      // Do not create empty records for days never saved.
+      if (!hasAnyMeals && !savedDates.has(dateStr)) {
+        continue;
       }
-      setSavedDates(nextSavedDates);
 
-      showMessage('success', `Saved selections for ${savedCount} days!`);
-      if (onSaveSuccess) {
-        onSaveSuccess();
-      }
-    } catch (error) {
-      console.error('Error saving weekly selections:', error);
-      showMessage('error', 'Failed to save selections');
-    } finally {
-      setSaving(false);
+      const selectionRef = doc(
+        db,
+        'mealSelections',
+        dateStr,
+        'users',
+        currentUser.uid
+      );
+
+      const dayData = {
+        employeeId: currentUser.uid,
+        userId: currentUser.uid,
+        email: currentUser.email || '',
+        date: dateStr,
+
+        breakfast: selections.breakfast === true,
+        lunch: selections.lunch === true,
+        snacks: selections.snacks === true,
+        dinner: selections.dinner === true,
+
+        status: 'Confirmed',
+        timestamp: new Date().toISOString()
+      };
+
+      await setDoc(selectionRef, dayData);
+
+      await cacheDocument(
+        docCacheKey(
+          'mealSelections',
+          dateStr,
+          'users',
+          currentUser.uid
+        ),
+        dayData
+      );
+
+      nextSavedDates.add(dateStr);
+      savedCount++;
     }
-  };
+
+    setSavedDates(nextSavedDates);
+
+    showMessage(
+      'success',
+      `Saved meal preferences for ${savedCount} days!`
+    );
+
+    if (onSaveSuccess) {
+      onSaveSuccess();
+    }
+
+  } catch (error) {
+    console.error('Error saving weekly preferences:', error);
+    showMessage('error', 'Failed to save meal preferences');
+  } finally {
+    setSaving(false);
+  }
+};
+
 
   const showMessage = (type, text) => {
     setMessage({ type, text });
@@ -383,17 +388,25 @@ const WeeklyMealSelector = ({ showDefaultMenu, setShowDefaultMenu, onSaveSuccess
 
   const getSelectedCountForDay = (dateStr) => {
     const selections = weeklySelections[dateStr];
+
     if (!selections) return 0;
-    return MEAL_TYPES.reduce((sum, m) => sum + (selections[m.key]?.length || 0), 0);
+
+    return MEAL_TYPES.filter(
+      meal => selections[meal.key] === true
+    ).length;
   };
 
   const getTotalSelectedItems = () => {
     let total = 0;
+
     Object.values(weeklySelections).forEach(daySelections => {
-      MEAL_TYPES.forEach(m => {
-        total += daySelections[m.key]?.length || 0;
+      MEAL_TYPES.forEach(meal => {
+        if (daySelections[meal.key] === true) {
+          total++;
+        }
       });
     });
+
     return total;
   };
 
@@ -427,10 +440,15 @@ const WeeklyMealSelector = ({ showDefaultMenu, setShowDefaultMenu, onSaveSuccess
             </button>
           </div>
         </div>
-        <p className="subtitle">Pick exactly what you want for the next 7 days</p>
-        <div className="deadline-notice" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-          <Clock size={14} style={{ color: 'var(--accent-primary)' }} />
-          <span><strong>Important:</strong> You can add items until {formatDeadlineTime()} of the previous day. Removing items is always allowed.</span>
+        <p className="subtitle">
+          Set your meal preferences for the next 7 days.
+        </p>
+        <div className="deadline-notice">
+          <Clock size={14} />
+          <span>
+            <strong>Important:</strong> You can change your meal preferences
+            until {formatDeadlineTime()} on the previous day.
+          </span>
         </div>
       </div>
 
@@ -456,7 +474,7 @@ const WeeklyMealSelector = ({ showDefaultMenu, setShowDefaultMenu, onSaveSuccess
                   <span className="day-month">{day.month}</span>
                 </div>
                 <div className="day-count">
-                  {getSelectedCountForDay(day.date)} items
+                  {getSelectedCountForDay(day.date)} meals requested
                 </div>
               </div>
 
@@ -464,48 +482,68 @@ const WeeklyMealSelector = ({ showDefaultMenu, setShowDefaultMenu, onSaveSuccess
                 <div className="deadline-locked-badge">Deadline passed — remove only</div>
               )}
 
-              <div className="day-meals-groups">
-                {MEAL_TYPES.map(({ key, label, icon: Icon }) => {
-                  const availableItems = getAvailableItems(day.date, key);
-                  const selectedItems = weeklySelections[day.date]?.[key] || [];
 
-                  if (availableItems.length === 0) return null;
+<div className="day-meals-groups">
+  {MEAL_TYPES.map(({ key, label, icon: Icon }) => {
+    const isInterested =
+      weeklySelections[day.date]?.[key] === true;
 
-                  return (
-                    <div className="meal-group" key={key}>
-                      <div className="meal-group-header">
-                        <Icon size={14} style={{ color: 'var(--accent-primary)' }} />
-                        <span>{label}</span>
-                        <span className="meal-group-time">{mealTimings[key].start}</span>
-                      </div>
-                      <div className="item-chip-row">
-                        {availableItems.map(item => {
-                          const isSelected = selectedItems.includes(item.name);
-                          const isOutOfStock = item.quantity !== null && item.quantity <= 0;
-                          return (
-                            <button
-                              key={item.name}
-                              type="button"
-                              className={`item-chip ${isSelected ? 'selected' : ''}`}
-                              onClick={() => handleItemToggle(day.date, key, item.name)}
-                              disabled={isOutOfStock}
-                              title={isOutOfStock ? `${item.name} is out of stock` : item.quantity !== null ? `${item.quantity} available` : item.name}
-                            >
-                              {isSelected && <Check size={12} />}
-                              <span>{item.name}</span>
-                              {item.quantity !== null && (
-                                <span style={{ marginLeft: '6px', fontSize: '11px', opacity: 0.75 }}>
-                                  {isOutOfStock ? 'Out of stock' : `${item.quantity} left`}
-                                </span>
-                              )}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+    const menuItems = Array.isArray(weeklyMenus[day.date]?.[key])
+      ? weeklyMenus[day.date][key]
+          .map(item =>
+            typeof item === 'string'
+              ? item
+              : item?.name || ''
+          )
+          .filter(Boolean)
+      : [];
+
+    return (
+      <div className="meal-group" key={key}>
+        <div className="meal-group-header">
+          <Icon
+            size={16}
+            style={{ color: 'var(--accent-primary)' }}
+          />
+
+          <span>{label}</span>
+
+          <span className="meal-group-time">
+            {mealTimings[key].start}
+          </span>
+        </div>
+
+        <div className="weekly-meal-option">
+          <div className="weekly-assigned-menu">
+            {menuItems.length > 0 ? (
+              <span>{menuItems.join(', ')}</span>
+            ) : (
+              <span className="no-items">
+                Menu not published yet
+              </span>
+            )}
+          </div>
+
+          <label className="weekly-meal-toggle">
+            <span>
+              {isInterested ? 'Interested' : 'Not Interested'}
+            </span>
+
+            <input
+              type="checkbox"
+              checked={isInterested}
+              onChange={() =>
+                handleMealToggle(day.date, key)
+              }
+              disabled={!editAllowed || saving || offline}
+            />
+          </label>
+        </div>
+      </div>
+    );
+  })}
+</div>
+
             </div>
           );
         })}
@@ -514,7 +552,7 @@ const WeeklyMealSelector = ({ showDefaultMenu, setShowDefaultMenu, onSaveSuccess
       <div className="weekly-summary">
         <div className="summary-stats">
           <div className="stat-item">
-            <span className="stat-label">Total Items Selected</span>
+            <span className="stat-label">Total Meals Requested</span>
             <span className="stat-value">{getTotalSelectedItems()}</span>
           </div>
           <div className="stat-item">
@@ -526,7 +564,7 @@ const WeeklyMealSelector = ({ showDefaultMenu, setShowDefaultMenu, onSaveSuccess
         <button
           className="btn btn-primary btn-large"
           onClick={handleSaveWeekly}
-          disabled={saving || getTotalSelectedItems() === 0 || offline}
+          disabled={saving || offline}
         >
           {saving ? 'Saving...' : 'Save Weekly Selections'}
         </button>
@@ -551,13 +589,17 @@ const WeeklyMealSelector = ({ showDefaultMenu, setShowDefaultMenu, onSaveSuccess
                   <div key={day.date} className="history-day-card">
                     <div className="history-day-label">{day.dayLabel}</div>
                     <div className="history-day-meals">
-                      {MEAL_TYPES.map(({ key, label }) => (
-                        day[key].length > 0 && (
-                          <div key={key} className="history-meal-row">
-                            <span className="history-meal-label">{label}:</span>
-                            <span className="history-meal-items">{day[key].join(', ')}</span>
-                          </div>
-                        )
+                      {MEAL_TYPES.map(({ key, label }) => {day[key] && (
+                                                            <div key={key} className="history-meal-row">
+                                                              <span className="history-meal-label">
+                                                                {label}:
+                                                              </span>
+
+                                                              <span className="history-meal-items">
+                                                                Interested
+                                                              </span>
+                                                            </div>
+                                                          )}
                       ))}
                     </div>
                   </div>
