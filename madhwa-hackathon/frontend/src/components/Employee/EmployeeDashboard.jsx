@@ -10,6 +10,8 @@ import {
   Info, CheckCircle2, AlertTriangle, Utensils, Check, ClipboardCheck, ClipboardList
 } from 'lucide-react';
 import notificationService from '../../utils/notificationService';
+import WeeklyMealSelector from './WeeklyMealSelector';
+import MonthlyMealCalendar from './MonthlyMealCalendar';
 import EmployeeAnnouncements from './EmployeeAnnouncements';
 import MyOrders from './MyOrders';
 import './EmployeeDashboard.css';
@@ -31,11 +33,13 @@ const EMPTY_SELECTIONS = {
 const EmployeeDashboard = () => {
   const { currentUser } = useAuth();
   const [menu, setMenu] = useState(null);
+  const [showDefaultMenu, setShowDefaultMenu] = useState(false);
+  const [viewMode, setViewMode] = useState('monthly');
   const [targetDate, setTargetDate] = useState(() => {
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    return getLocalDateString(tomorrow);
-  });
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  return getLocalDateString(tomorrow);
+});
   const menuRef = useRef(null);
   const [staples, setStaples] = useState({
     breakfast: [],
@@ -69,7 +73,9 @@ const EmployeeDashboard = () => {
   // Keep the assigned menu synchronized with admin changes in Firestore.
   useEffect(() => {
     const menuRef = doc(db, 'menus', targetDate);
-    setLoading(true);
+    if (viewMode === 'daily') {
+      setLoading(true);
+    }
 
     const unsubscribe = onSnapshot(
       menuRef,
@@ -81,7 +87,7 @@ const EmployeeDashboard = () => {
         setOffline(snapshot.metadata.fromCache);
         setMenu(isValidMenu ? menuData : null);
 
-        if (!isValidMenu) {
+        if (!isValidMenu && viewMode === 'daily') {
           showMessage(
             'info',
             snapshot.metadata.fromCache
@@ -96,12 +102,14 @@ const EmployeeDashboard = () => {
         console.error('Error listening to tomorrow menu:', error);
         setMenu(null);
         setLoading(false);
-        showMessage('error', 'Failed to load menu. Please try again later.');
+        if (viewMode === 'daily') {
+          showMessage('error', 'Failed to load menu. Please try again later.');
+        }
       }
     );
 
     return () => unsubscribe();
-  }, [targetDate]);
+  }, [targetDate, viewMode]);
 
   useEffect(() => {
     menuRef.current = menu;
@@ -271,29 +279,29 @@ const EmployeeDashboard = () => {
   };
 
   const getAvailableItems = (mealType) => {
-     const rawMenuItems = [
-       ...(staples[mealType] || []),
-       ...(menu?.[mealType] || [])
-     ];
+    const rawMenuItems = [
+      ...(staples[mealType] || []),
+      ...(menu?.[mealType] || [])
+    ];
 
-     const combined = rawMenuItems
-       .map(normalizeMenuItem)
-       .filter(item => item.name && item.available);
+    const combined = rawMenuItems
+      .map(normalizeMenuItem)
+      .filter(item => item.name && item.available);
 
-     const uniqueItems = [];
-     const seen = new Set();
+    const uniqueItems = [];
+    const seen = new Set();
 
-     combined.forEach(item => {
-       const key = item.name.toLowerCase();
+    combined.forEach(item => {
+      const key = item.name.toLowerCase();
 
-       if (!seen.has(key)) {
-         seen.add(key);
-         uniqueItems.push(item);
-       }
-     });
+      if (!seen.has(key)) {
+        seen.add(key);
+        uniqueItems.push(item);
+      }
+    });
 
-     return uniqueItems;
-   };
+    return uniqueItems;
+  };
 
   const loadUserSelections = async () => {
     if (!currentUser) return;
@@ -407,100 +415,100 @@ const EmployeeDashboard = () => {
   };
 
 
-const handleSubmit = async () => {
-  if (deadlinePassed) {
-    showMessage(
-      'error',
-      `Selection deadline has passed (${formatDeadlineTime()}).`
-    );
-    return;
-  }
+  const handleSubmit = async () => {
+    if (deadlinePassed) {
+      showMessage(
+        'error',
+        `Selection deadline has passed (${formatDeadlineTime()}).`
+      );
+      return;
+    }
 
-  if (!currentUser) {
-    showMessage('error', 'Please log in again.');
-    return;
-  }
+    if (!currentUser) {
+      showMessage('error', 'Please log in again.');
+      return;
+    }
 
-  try {
-    setSaving(true);
+    try {
+      setSaving(true);
 
-    const tomorrow = getTomorrowDate();
+      const tomorrow = getTomorrowDate();
 
-    const selectionRef = doc(
-      db,
-      'mealSelections',
-      tomorrow,
-      'users',
-      currentUser.uid
-    );
-
-    // Save only meal-level preferences.
-    const selectionData = {
-      employeeId: currentUser.uid,
-      userId: currentUser.uid,
-      email: currentUser.email || '',
-      date: tomorrow,
-
-      breakfast: selections.breakfast === true,
-      lunch: selections.lunch === true,
-      snacks: selections.snacks === true,
-      dinner: selections.dinner === true,
-
-      status: 'Confirmed',
-      timestamp: new Date().toISOString(),
-      modified: savedSelections !== null
-    };
-
-    await setDoc(selectionRef, selectionData);
-
-    await cacheDocument(
-      docCacheKey(
+      const selectionRef = doc(
+        db,
         'mealSelections',
         tomorrow,
         'users',
         currentUser.uid
-      ),
-      selectionData
-    );
+      );
 
-    const updatedSelections = {
-      breakfast: selectionData.breakfast,
-      lunch: selectionData.lunch,
-      snacks: selectionData.snacks,
-      dinner: selectionData.dinner
-    };
+      // Save only meal-level preferences.
+      const selectionData = {
+        employeeId: currentUser.uid,
+        userId: currentUser.uid,
+        email: currentUser.email || '',
+        date: tomorrow,
 
-    setSelections(updatedSelections);
-    setSavedSelections(updatedSelections);
+        breakfast: selections.breakfast === true,
+        lunch: selections.lunch === true,
+        snacks: selections.snacks === true,
+        dinner: selections.dinner === true,
 
-    setOrdersRefreshTrigger(prev => prev + 1);
+        status: 'Confirmed',
+        timestamp: new Date().toISOString(),
+        modified: savedSelections !== null
+      };
 
-    showMessage('success', 'Meal preferences saved successfully!');
-    setShowSuccessPopup(true);
-    showConfirmationNotification();
+      await setDoc(selectionRef, selectionData);
 
-  } catch (error) {
-    console.error('Error saving meal preferences:', error);
-    showMessage('error', 'Failed to save preferences. Please try again.');
-  } finally {
-    setSaving(false);
-  }
-};
+      await cacheDocument(
+        docCacheKey(
+          'mealSelections',
+          tomorrow,
+          'users',
+          currentUser.uid
+        ),
+        selectionData
+      );
 
-const handleMealToggle = (mealType) => {
-  if (deadlinePassed) {
-    showMessage(
-      'error',
-      'The deadline to select meals for tomorrow has passed.'
-    );
-    return;
-  }
+      const updatedSelections = {
+        breakfast: selectionData.breakfast,
+        lunch: selectionData.lunch,
+        snacks: selectionData.snacks,
+        dinner: selectionData.dinner
+      };
 
-  setSelections(prev => ({
-    ...prev,
-    [mealType]: !prev[mealType]
-  }));
-};
+      setSelections(updatedSelections);
+      setSavedSelections(updatedSelections);
+
+      setOrdersRefreshTrigger(prev => prev + 1);
+
+      showMessage('success', 'Meal preferences saved successfully!');
+      setShowSuccessPopup(true);
+      showConfirmationNotification();
+
+    } catch (error) {
+      console.error('Error saving meal preferences:', error);
+      showMessage('error', 'Failed to save preferences. Please try again.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleMealToggle = (mealType) => {
+    if (deadlinePassed) {
+      showMessage(
+        'error',
+        'The deadline to select meals for tomorrow has passed.'
+      );
+      return;
+    }
+
+    setSelections(prev => ({
+      ...prev,
+      [mealType]: !prev[mealType]
+    }));
+  };
 
 
   const handleOrderCancelled = (cancelledDate) => {
@@ -560,7 +568,7 @@ const handleMealToggle = (mealType) => {
     dinner: { start: '8:00 PM', end: '9:30 PM' }
   };
 
-  if (loading) {
+  if (loading && viewMode === 'daily') {
     return (
       <div className="loading-container">
         <div className="spinner"></div>
@@ -650,165 +658,214 @@ const handleMealToggle = (mealType) => {
               <span>Orders close at {formatDeadlineTime()} today ({formatDate(getLocalDateString())})</span>
             </p>
           </div>
+          <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+            <div className="default-menu-toggle" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <label htmlFor="showDefaultMenu" style={{ fontSize: '13px', fontWeight: '600', color: 'white', cursor: 'pointer' }}>
+                Show Default Menu
+              </label>
+              <input
+                id="showDefaultMenu"
+                type="checkbox"
+                checked={showDefaultMenu}
+                onChange={(e) => setShowDefaultMenu(e.target.checked)}
+                style={{
+                  width: '18px',
+                  height: '18px',
+                  cursor: 'pointer',
+                  accentColor: 'var(--accent-primary)'
+                }}
+              />
+            </div>
+            <div className="view-toggle">
+              <button
+                className={`toggle-btn ${viewMode === 'monthly' ? 'active' : ''}`}
+                onClick={() => setViewMode('monthly')}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+              >
+                <Calendar size={14} /> Monthly
+              </button>
+              <button
+                className={`toggle-btn ${viewMode === 'daily' ? 'active' : ''}`}
+                onClick={() => setViewMode('daily')}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+              >
+                <Calendar size={14} /> Daily
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
+      {viewMode === 'monthly' ? (
+        <MonthlyMealCalendar
+          selectedDate={targetDate}
+          onSelectDate={(dateStr) => setTargetDate(dateStr)}
+          onSwitchToDaily={(dateStr) => {
+            if (dateStr) setTargetDate(dateStr);
+            setViewMode('daily');
+          }}
+          refreshTrigger={ordersRefreshTrigger}
+        />
+      ) : (
+        <>
+
       {!menu && (
-          <div className="no-menu-card">
-            <div className="empty-state">
-              <span className="empty-icon">
-                <Utensils size={40} style={{ color: 'var(--text-tertiary)' }} />
-              </span>
-              <h3>No Menu Available</h3>
-              <p>The menu for this date hasn't been published yet.</p>
-              <p className="small-text">
-                You can still select your meal preferences below.
-              </p>
-            </div>
-          </div>
-        )}
-
-        <div className="meals-grid">
-          {MEAL_TYPES.map(({ key, label, icon: Icon }) => {
-            const availableItems = getAvailableItems(key);
-            const isInterested = selections[key] === true;
-
-            return (
-              <div
-                className={`meal-card ${isInterested ? 'selected' : ''}`}
-                key={key}
-              >
-                <div className="meal-header">
-                  <div
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '12px'
-                    }}
-                  >
-                    <div className="meal-icon">
-                      <Icon
-                        size={20}
-                        style={{ color: 'var(--accent-primary)' }}
-                      />
-                    </div>
-
-                    <div>
-                      <h3>{label}</h3>
-                      <div className="meal-timing">
-                        <Clock
-                          size={12}
-                          style={{
-                            marginRight: '4px',
-                            verticalAlign: 'middle'
-                          }}
-                        />
-                        {mealTimings[key].start} - {mealTimings[key].end}
-                      </div>
-                    </div>
-                  </div>
-
-                  <label
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '8px',
-                      cursor: deadlinePassed ? 'not-allowed' : 'pointer'
-                    }}
-                  >
-                    <span style={{ fontSize: '13px', fontWeight: 600 }}>
-                      {isInterested ? 'Interested' : 'Not Interested'}
-                    </span>
-                    <input
-                      type="checkbox"
-                      checked={isInterested}
-                      onChange={() => handleMealToggle(key)}
-                      disabled={deadlinePassed || saving || offline}
-                      style={{
-                        width: '20px',
-                        height: '20px',
-                        accentColor: 'var(--accent-primary)'
-                      }}
-                    />
-                  </label>
-                </div>
-
-                <div className="assigned-menu">
-                  <strong>Assigned Menu</strong>
-                  {availableItems.length > 0 ? (
-                    <p>{availableItems.map(item => item.name).join(', ')}</p>
-                  ) : (
-                    <p className="no-items">
-                      Menu items have not been published yet.
-                    </p>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-
-        <div className="summary-section">
-          <div className="summary-card">
-            <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <ClipboardList
-                size={20}
-                style={{ color: 'var(--accent-primary)' }}
-              />
-              Meal Preference Summary
-            </h3>
-
-            <div className="summary-stats">
-              <div className="stat">
-                <span className="stat-label">Meals Requested</span>
-                <span className="stat-value">{getSelectedCount()} / 4</span>
-              </div>
-
-              {savedSelections && (
-                <div className="stat">
-                  <span className="stat-label">Status</span>
-                  <span
-                    className={`stat-value ${
-                      hasChanges() ? 'warning' : 'success'
-                    }`}
-                  >
-                    {hasChanges() ? 'Unsaved Changes' : 'Saved'}
-                  </span>
-                </div>
-              )}
-            </div>
-
-            <button
-              className="btn btn-primary btn-full save-btn"
-              onClick={handleSubmit}
-              disabled={deadlinePassed || saving || !hasChanges() || offline}
-            >
-              {saving
-                ? 'Saving...'
-                : hasChanges()
-                  ? 'Save Meal Preferences'
-                  : 'No Changes'}
-            </button>
-
-            <p
-              className="help-text"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                justifyContent: 'center'
-              }}
-            >
-              <Info
-                size={14}
-                style={{ color: 'var(--accent-primary)' }}
-              />
-              <span>
-                Meal selection closes at {formatDeadlineTime()} daily.
-              </span>
+        <div className="no-menu-card">
+          <div className="empty-state">
+            <span className="empty-icon">
+              <Utensils size={40} style={{ color: 'var(--text-tertiary)' }} />
+            </span>
+            <h3>No Menu Available</h3>
+            <p>The menu for this date hasn't been published yet.</p>
+            <p className="small-text">
+              You can still select your meal preferences below.
             </p>
           </div>
         </div>
+      )}
+
+      <div className="meals-grid">
+        {MEAL_TYPES.map(({ key, label, icon: Icon }) => {
+          const availableItems = getAvailableItems(key);
+          const isInterested = selections[key] === true;
+
+          return (
+            <div
+              className={`meal-card ${isInterested ? 'selected' : ''}`}
+              key={key}
+            >
+              <div className="meal-header">
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px'
+                  }}
+                >
+                  <div className="meal-icon">
+                    <Icon
+                      size={20}
+                      style={{ color: 'var(--accent-primary)' }}
+                    />
+                  </div>
+
+                  <div>
+                    <h3>{label}</h3>
+                    <div className="meal-timing">
+                      <Clock
+                        size={12}
+                        style={{
+                          marginRight: '4px',
+                          verticalAlign: 'middle'
+                        }}
+                      />
+                      {mealTimings[key].start} - {mealTimings[key].end}
+                    </div>
+                  </div>
+                </div>
+
+                <label
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    cursor: deadlinePassed ? 'not-allowed' : 'pointer'
+                  }}
+                >
+                  <span style={{ fontSize: '13px', fontWeight: 600 }}>
+                    {isInterested ? 'Interested' : 'Not Interested'}
+                  </span>
+                  <input
+                    type="checkbox"
+                    checked={isInterested}
+                    onChange={() => handleMealToggle(key)}
+                    disabled={deadlinePassed || saving || offline}
+                    style={{
+                      width: '20px',
+                      height: '20px',
+                      accentColor: 'var(--accent-primary)'
+                    }}
+                  />
+                </label>
+              </div>
+
+              <div className="assigned-menu">
+                <strong>Assigned Menu</strong>
+                {availableItems.length > 0 ? (
+                  <p>{availableItems.map(item => item.name).join(', ')}</p>
+                ) : (
+                  <p className="no-items">
+                    Menu items have not been published yet.
+                  </p>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="summary-section">
+        <div className="summary-card">
+          <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <ClipboardList
+              size={20}
+              style={{ color: 'var(--accent-primary)' }}
+            />
+            Meal Preference Summary
+          </h3>
+
+          <div className="summary-stats">
+            <div className="stat">
+              <span className="stat-label">Meals Requested</span>
+              <span className="stat-value">{getSelectedCount()} / 4</span>
+            </div>
+
+            {savedSelections && (
+              <div className="stat">
+                <span className="stat-label">Status</span>
+                <span
+                  className={`stat-value ${hasChanges() ? 'warning' : 'success'
+                    }`}
+                >
+                  {hasChanges() ? 'Unsaved Changes' : 'Saved'}
+                </span>
+              </div>
+            )}
+          </div>
+
+          <button
+            className="btn btn-primary btn-full save-btn"
+            onClick={handleSubmit}
+            disabled={deadlinePassed || saving || !hasChanges() || offline}
+          >
+            {saving
+              ? 'Saving...'
+              : hasChanges()
+                ? 'Save Meal Preferences'
+                : 'No Changes'}
+          </button>
+
+          <p
+            className="help-text"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              justifyContent: 'center'
+            }}
+          >
+            <Info
+              size={14}
+              style={{ color: 'var(--accent-primary)' }}
+            />
+            <span>
+              Meal selection closes at {formatDeadlineTime()} daily.
+            </span>
+          </p>
+        </div>
+      </div>
+        </>
+      )}
 
       {/* My Orders Section */}
       <MyOrders
