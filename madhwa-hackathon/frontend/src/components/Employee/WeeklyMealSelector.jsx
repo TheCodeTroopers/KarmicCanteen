@@ -589,17 +589,16 @@ const handleSaveWeekly = async () => {
                   <div key={day.date} className="history-day-card">
                     <div className="history-day-label">{day.dayLabel}</div>
                     <div className="history-day-meals">
-                      {MEAL_TYPES.map(({ key, label }) => {day[key] && (
-                                                            <div key={key} className="history-meal-row">
-                                                              <span className="history-meal-label">
-                                                                {label}:
-                                                              </span>
+                      {MEAL_TYPES.map(({ key, label }) => day[key] && (
+                        <div key={key} className="history-meal-row">
+                          <span className="history-meal-label">
+                            {label}:
+                          </span>
 
-                                                              <span className="history-meal-items">
-                                                                Interested
-                                                              </span>
-                                                            </div>
-                                                          )}
+                          <span className="history-meal-items">
+                            Interested
+                          </span>
+                        </div>
                       ))}
                     </div>
                   </div>

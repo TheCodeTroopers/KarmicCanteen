@@ -10,6 +10,8 @@ import {
   Info, CheckCircle2, AlertTriangle, Utensils, Check, ClipboardCheck, ClipboardList
 } from 'lucide-react';
 import notificationService from '../../utils/notificationService';
+import WeeklyMealSelector from './WeeklyMealSelector';
+import MonthlyMealCalendar from './MonthlyMealCalendar';
 import EmployeeAnnouncements from './EmployeeAnnouncements';
 import MyOrders from './MyOrders';
 import './EmployeeDashboard.css';
@@ -31,11 +33,13 @@ const EMPTY_SELECTIONS = {
 const EmployeeDashboard = () => {
   const { currentUser } = useAuth();
   const [menu, setMenu] = useState(null);
+  const [showDefaultMenu, setShowDefaultMenu] = useState(false);
+  const [viewMode, setViewMode] = useState('monthly');
   const [targetDate, setTargetDate] = useState(() => {
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    return getLocalDateString(tomorrow);
-  });
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  return getLocalDateString(tomorrow);
+});
   const menuRef = useRef(null);
   const [staples, setStaples] = useState({
     breakfast: [],
@@ -69,7 +73,9 @@ const EmployeeDashboard = () => {
   // Keep the assigned menu synchronized with admin changes in Firestore.
   useEffect(() => {
     const menuRef = doc(db, 'menus', targetDate);
-    setLoading(true);
+    if (viewMode === 'daily') {
+      setLoading(true);
+    }
 
     const unsubscribe = onSnapshot(
       menuRef,
@@ -81,7 +87,7 @@ const EmployeeDashboard = () => {
         setOffline(snapshot.metadata.fromCache);
         setMenu(isValidMenu ? menuData : null);
 
-        if (!isValidMenu) {
+        if (!isValidMenu && viewMode === 'daily') {
           showMessage(
             'info',
             snapshot.metadata.fromCache
@@ -96,12 +102,14 @@ const EmployeeDashboard = () => {
         console.error('Error listening to tomorrow menu:', error);
         setMenu(null);
         setLoading(false);
-        showMessage('error', 'Failed to load menu. Please try again later.');
+        if (viewMode === 'daily') {
+          showMessage('error', 'Failed to load menu. Please try again later.');
+        }
       }
     );
 
     return () => unsubscribe();
-  }, [targetDate]);
+  }, [targetDate, viewMode]);
 
   useEffect(() => {
     menuRef.current = menu;
@@ -560,7 +568,7 @@ const EmployeeDashboard = () => {
     dinner: { start: '8:00 PM', end: '9:30 PM' }
   };
 
-  if (loading) {
+  if (loading && viewMode === 'daily') {
     return (
       <div className="loading-container">
         <div className="spinner"></div>
@@ -670,23 +678,36 @@ const EmployeeDashboard = () => {
             </div>
             <div className="view-toggle">
               <button
+                className={`toggle-btn ${viewMode === 'monthly' ? 'active' : ''}`}
+                onClick={() => setViewMode('monthly')}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+              >
+                <Calendar size={14} /> Monthly
+              </button>
+              <button
                 className={`toggle-btn ${viewMode === 'daily' ? 'active' : ''}`}
                 onClick={() => setViewMode('daily')}
                 style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
               >
                 <Calendar size={14} /> Daily
               </button>
-              <button
-                className={`toggle-btn ${viewMode === 'weekly' ? 'active' : ''}`}
-                onClick={() => setViewMode('weekly')}
-                style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-              >
-                <Calendar size={14} /> Weekly
-              </button>
             </div>
           </div>
         </div>
       </div>
+
+      {viewMode === 'monthly' ? (
+        <MonthlyMealCalendar
+          selectedDate={targetDate}
+          onSelectDate={(dateStr) => setTargetDate(dateStr)}
+          onSwitchToDaily={(dateStr) => {
+            if (dateStr) setTargetDate(dateStr);
+            setViewMode('daily');
+          }}
+          refreshTrigger={ordersRefreshTrigger}
+        />
+      ) : (
+        <>
 
       {!menu && (
         <div className="no-menu-card">
@@ -843,6 +864,8 @@ const EmployeeDashboard = () => {
           </p>
         </div>
       </div>
+        </>
+      )}
 
       {/* My Orders Section */}
       <MyOrders
