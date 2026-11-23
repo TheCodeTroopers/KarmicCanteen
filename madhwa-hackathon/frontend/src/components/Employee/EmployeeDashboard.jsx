@@ -1,16 +1,15 @@
 // src/components/Employee/EmployeeDashboard.jsx
-import React, { useState, useEffect } from 'react';
-import { doc, setDoc } from 'firebase/firestore';
+import React, { useState, useEffect, useRef } from 'react';
+import { doc, setDoc, onSnapshot } from 'firebase/firestore';
 import { db } from '../../firebase/config';
 import { getDocWithCache, cacheDocument, docCacheKey } from '../../utils/indexedDbCache';
 import { useAuth } from '../../context/AuthContext';
 import { getLocalDateString } from '../../utils/dateUtils';
-import { 
-  Lock, Clock, Bell, Calendar, Coffee, Soup, Cookie, ChefHat, 
+import {
+  Clock, Bell, Calendar, Coffee, Soup, Cookie, ChefHat,
   Info, CheckCircle2, AlertTriangle, Utensils, Check, ClipboardCheck, ClipboardList
 } from 'lucide-react';
 import notificationService from '../../utils/notificationService';
-import WeeklyMealSelector from './WeeklyMealSelector';
 import EmployeeAnnouncements from './EmployeeAnnouncements';
 import MyOrders from './MyOrders';
 import './EmployeeDashboard.css';
@@ -22,19 +21,34 @@ const MEAL_TYPES = [
   { key: 'dinner', label: 'Dinner', icon: ChefHat },
 ];
 
-const EMPTY_SELECTIONS = { breakfast: [], lunch: [], snacks: [], dinner: [] };
+const EMPTY_SELECTIONS = {
+  breakfast: false,
+  lunch: false,
+  snacks: false,
+  dinner: false
+};
 
 const EmployeeDashboard = () => {
   const { currentUser } = useAuth();
   const [menu, setMenu] = useState(null);
-  const [staples, setStaples] = useState(EMPTY_SELECTIONS);
+  const [targetDate, setTargetDate] = useState(() => {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    return getLocalDateString(tomorrow);
+  });
+  const menuRef = useRef(null);
+  const [staples, setStaples] = useState({
+    breakfast: [],
+    lunch: [],
+    snacks: [],
+    dinner: []
+  });
   const [selections, setSelections] = useState(EMPTY_SELECTIONS);
   const [savedSelections, setSavedSelections] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [deadlinePassed, setDeadlinePassed] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
-  const [currentTime, setCurrentTime] = useState(new Date());
   const [deadlineHour, setDeadlineHour] = useState(21);
   const [deadlineMinute, setDeadlineMinute] = useState(0);
   const [notificationPermission, setNotificationPermission] = useState('default');
@@ -43,36 +57,82 @@ const EmployeeDashboard = () => {
   const [showSuccessPopup, setShowSuccessPopup] = useState(false);
   const [showDeadlineWarning, setShowDeadlineWarning] = useState(false);
   const [warningShown, setWarningShown] = useState(false);
-  const [viewMode, setViewMode] = useState('daily'); // 'daily' or 'weekly'
-  const [showDefaultMenu, setShowDefaultMenu] = useState(true); // Toggle for default menu items
   const [offline, setOffline] = useState(false); // True when data was served from IndexedDB cache
   const [ordersRefreshTrigger, setOrdersRefreshTrigger] = useState(0);
 
   useEffect(() => {
     fetchDeadlineSettings();
-    fetchTomorrowMenu();
     loadStaples();
-    loadUserSelections();
     initializeNotifications();
   }, []);
+
+  // Keep the assigned menu synchronized with admin changes in Firestore.
+  useEffect(() => {
+    const menuRef = doc(db, 'menus', targetDate);
+    setLoading(true);
+
+    const unsubscribe = onSnapshot(
+      menuRef,
+      { includeMetadataChanges: true },
+      (snapshot) => {
+        const menuData = snapshot.exists() ? snapshot.data() : null;
+        const isValidMenu = menuData && menuData.date === targetDate;
+
+        setOffline(snapshot.metadata.fromCache);
+        setMenu(isValidMenu ? menuData : null);
+
+        if (!isValidMenu) {
+          showMessage(
+            'info',
+            snapshot.metadata.fromCache
+              ? 'You are offline and no saved menu is available for tomorrow yet.'
+              : 'No menu available for tomorrow yet. Please check back later.'
+          );
+        }
+
+        setLoading(false);
+      },
+      (error) => {
+        console.error('Error listening to tomorrow menu:', error);
+        setMenu(null);
+        setLoading(false);
+        showMessage('error', 'Failed to load menu. Please try again later.');
+      }
+    );
+
+    return () => unsubscribe();
+  }, [targetDate]);
+
+  useEffect(() => {
+    menuRef.current = menu;
+  }, [menu]);
+
+  useEffect(() => {
+    if (currentUser) {
+      loadUserSelections();
+    }
+  }, [currentUser]);
 
   useEffect(() => {
     checkDeadline();
 
     const timer = setInterval(() => {
       const now = new Date();
-      setCurrentTime(now);
       checkDeadline();
 
-      if (now.getHours() === 0 && now.getMinutes() === 0) {
-        console.log('Midnight detected - refreshing menu for new day');
-        fetchTomorrowMenu();
+      const nextTomorrow = new Date();
+      nextTomorrow.setDate(nextTomorrow.getDate() + 1);
+      const nextTargetDate = getLocalDateString(nextTomorrow);
+
+      if (nextTargetDate !== targetDate) {
+        console.log('New day detected - refreshing menu for the next day');
+        setTargetDate(nextTargetDate);
         loadUserSelections();
       }
     }, 60000);
 
     return () => clearInterval(timer);
-  }, [deadlineHour, deadlineMinute]);
+  }, [deadlineHour, deadlineMinute, currentUser, targetDate]);
 
   const getTomorrowDate = () => {
     const tomorrow = new Date();
@@ -85,11 +145,11 @@ const EmployeeDashboard = () => {
   const formatDate = (dateStr) => {
     const [year, month, day] = dateStr.split('-').map(Number);
     const date = new Date(year, month - 1, day);
-    return date.toLocaleDateString('en-US', { 
-      weekday: 'long', 
-      year: 'numeric', 
-      month: 'long', 
-      day: 'numeric' 
+    return date.toLocaleDateString('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
     });
   };
 
@@ -142,47 +202,6 @@ const EmployeeDashboard = () => {
     return `${hours}h ${minutes}m remaining`;
   };
 
-  const fetchTomorrowMenu = async () => {
-    try {
-      const tomorrow = getTomorrowDate();
-      const today = getLocalDateString();
-      
-      const menuRef = doc(db, 'menus', tomorrow);
-      const { data: menuData, exists, fromCache } = await getDocWithCache(
-        menuRef,
-        docCacheKey('menus', tomorrow)
-      );
-
-      if (fromCache) setOffline(true);
-
-      if (exists && menuData.date === tomorrow) {
-        setMenu(menuData);
-        setLoading(false);
-        return;
-      }
-
-      const todayMenuRef = doc(db, 'menus', today);
-      const todayMenuResult = await getDocWithCache(
-        todayMenuRef,
-        docCacheKey('menus', today)
-      );
-      if (todayMenuResult.exists && todayMenuResult.data.date === today) {
-        console.log('Found today\'s menu but not tomorrow\'s');
-      }
-
-      setMenu(null);
-      if (fromCache) {
-        showMessage('info', 'You are offline and no saved menu is available for tomorrow yet.');
-      } else {
-        showMessage('info', 'No menu available for tomorrow yet. Please check back later.');
-      }
-    } catch (error) {
-      console.error('Error fetching menu:', error);
-      showMessage('error', 'Failed to load menu. Please try again later.');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const loadStaples = async () => {
     try {
@@ -252,26 +271,33 @@ const EmployeeDashboard = () => {
   };
 
   const getAvailableItems = (mealType) => {
-    const rawMenuItems = menu?.[mealType] || [];
-    const rawStaplesItems = showDefaultMenu ? (staples[mealType] || []) : [];
-    const combined = [
-      ...rawStaplesItems.map(normalizeMenuItem),
-      ...rawMenuItems.map(normalizeMenuItem)
-    ].filter(item => item.name && item.available);
+    const rawMenuItems = [
+      ...(staples[mealType] || []),
+      ...(menu?.[mealType] || [])
+    ];
+
+    const combined = rawMenuItems
+      .map(normalizeMenuItem)
+      .filter(item => item.name && item.available);
 
     const uniqueItems = [];
     const seen = new Set();
+
     combined.forEach(item => {
       const key = item.name.toLowerCase();
+
       if (!seen.has(key)) {
         seen.add(key);
         uniqueItems.push(item);
       }
     });
+
     return uniqueItems;
   };
 
   const loadUserSelections = async () => {
+    if (!currentUser) return;
+
     try {
       const tomorrow = getTomorrowDate();
       const selectionRef = doc(db, 'mealSelections', tomorrow, 'users', currentUser.uid);
@@ -286,10 +312,21 @@ const EmployeeDashboard = () => {
         const isCancelled = data.status === 'Cancelled' || data.status === 'cancelled';
         if ((data.date === tomorrow || !data.date) && !isCancelled) {
           const loaded = {
-            breakfast: Array.isArray(data.breakfast) ? data.breakfast : [],
-            lunch: Array.isArray(data.lunch) ? data.lunch : [],
-            snacks: Array.isArray(data.snacks) ? data.snacks : [],
-            dinner: Array.isArray(data.dinner) ? data.dinner : [],
+            breakfast: Array.isArray(data.breakfast)
+              ? data.breakfast.length > 0
+              : data.breakfast === true,
+
+            lunch: Array.isArray(data.lunch)
+              ? data.lunch.length > 0
+              : data.lunch === true,
+
+            snacks: Array.isArray(data.snacks)
+              ? data.snacks.length > 0
+              : data.snacks === true,
+
+            dinner: Array.isArray(data.dinner)
+              ? data.dinner.length > 0
+              : data.dinner === true
           };
           setSelections(loaded);
           setSavedSelections(loaded);
@@ -304,29 +341,20 @@ const EmployeeDashboard = () => {
     }
   };
 
-  const handleItemToggle = (mealType, itemName) => {
-    const alreadySelected = selections[mealType]?.includes(itemName);
-
-    if (deadlinePassed && !alreadySelected) {
-      showMessage('error', 'The deadline to select meals for tomorrow has passed.');
-      return;
-    }
-
-    setSelections(prev => {
-      const items = prev[mealType] || [];
-      const updated = alreadySelected
-        ? items.filter(i => i !== itemName)
-        : [...items, itemName];
-      return { ...prev, [mealType]: updated };
-    });
-  };
-
   const formatDeadlineTime = () => {
     const h = parseInt(deadlineHour);
     const m = parseInt(deadlineMinute);
     const period = h >= 12 ? 'PM' : 'AM';
     const displayHour = h === 0 ? 12 : h > 12 ? h - 12 : h;
     return `${displayHour}:${m.toString().padStart(2, '0')} ${period}`;
+  };
+
+  const hasChanges = () => {
+    if (!savedSelections) return true;
+
+    return MEAL_TYPES.some(({ key }) =>
+      selections[key] !== savedSelections[key]
+    );
   };
 
   const initializeNotifications = async () => {
@@ -364,7 +392,7 @@ const EmployeeDashboard = () => {
     if (reminderScheduled) return;
 
     notificationService.scheduleMorningReminder(() => {
-      const hasMenu = menu !== null;
+      const hasMenu = menuRef.current !== null;
       notificationService.showMorningReminder(hasMenu);
     });
 
@@ -378,42 +406,102 @@ const EmployeeDashboard = () => {
     }
   };
 
+
   const handleSubmit = async () => {
     if (deadlinePassed) {
-      const deadlineTime = formatDeadlineTime();
-      showMessage('error', `Selection deadline has passed (${deadlineTime})`);
+      showMessage(
+        'error',
+        `Selection deadline has passed (${formatDeadlineTime()}).`
+      );
+      return;
+    }
+
+    if (!currentUser) {
+      showMessage('error', 'Please log in again.');
       return;
     }
 
     try {
       setSaving(true);
-      const tomorrow = getTomorrowDate();
-      const selectionRef = doc(db, 'mealSelections', tomorrow, 'users', currentUser.uid);
 
+      const tomorrow = getTomorrowDate();
+
+      const selectionRef = doc(
+        db,
+        'mealSelections',
+        tomorrow,
+        'users',
+        currentUser.uid
+      );
+
+      // Save only meal-level preferences.
       const selectionData = {
-        ...selections,
-        date: tomorrow,
-        status: 'Confirmed',
+        employeeId: currentUser.uid,
         userId: currentUser.uid,
-        email: currentUser.email,
+        email: currentUser.email || '',
+        date: tomorrow,
+
+        breakfast: selections.breakfast === true,
+        lunch: selections.lunch === true,
+        snacks: selections.snacks === true,
+        dinner: selections.dinner === true,
+
+        status: 'Confirmed',
         timestamp: new Date().toISOString(),
         modified: savedSelections !== null
       };
 
       await setDoc(selectionRef, selectionData);
-      await cacheDocument(docCacheKey('mealSelections', tomorrow, 'users', currentUser.uid), selectionData);
-      setSavedSelections(selections);
+
+      await cacheDocument(
+        docCacheKey(
+          'mealSelections',
+          tomorrow,
+          'users',
+          currentUser.uid
+        ),
+        selectionData
+      );
+
+      const updatedSelections = {
+        breakfast: selectionData.breakfast,
+        lunch: selectionData.lunch,
+        snacks: selectionData.snacks,
+        dinner: selectionData.dinner
+      };
+
+      setSelections(updatedSelections);
+      setSavedSelections(updatedSelections);
+
       setOrdersRefreshTrigger(prev => prev + 1);
+
       showMessage('success', 'Meal preferences saved successfully!');
       setShowSuccessPopup(true);
       showConfirmationNotification();
+
     } catch (error) {
-      console.error('Error saving selections:', error);
+      console.error('Error saving meal preferences:', error);
       showMessage('error', 'Failed to save preferences. Please try again.');
     } finally {
       setSaving(false);
     }
   };
+
+  const handleMealToggle = (mealType) => {
+    if (deadlinePassed) {
+      showMessage(
+        'error',
+        'The deadline to select meals for tomorrow has passed.'
+      );
+      return;
+    }
+
+    setSelections(prev => ({
+      ...prev,
+      [mealType]: !prev[mealType]
+    }));
+  };
+
 
   const handleOrderCancelled = (cancelledDate) => {
     const tomorrow = getTomorrowDate();
@@ -428,9 +516,23 @@ const EmployeeDashboard = () => {
 
   const handleOrderUpdated = (orderDate, newSelections) => {
     const tomorrow = getTomorrowDate();
-    if (orderDate === tomorrow) {
-      setSelections(newSelections);
-      setSavedSelections(newSelections);
+    if (orderDate === tomorrow && newSelections) {
+      const normalizedSelections = {
+        breakfast: Array.isArray(newSelections.breakfast)
+          ? newSelections.breakfast.length > 0
+          : newSelections.breakfast === true,
+        lunch: Array.isArray(newSelections.lunch)
+          ? newSelections.lunch.length > 0
+          : newSelections.lunch === true,
+        snacks: Array.isArray(newSelections.snacks)
+          ? newSelections.snacks.length > 0
+          : newSelections.snacks === true,
+        dinner: Array.isArray(newSelections.dinner)
+          ? newSelections.dinner.length > 0
+          : newSelections.dinner === true
+      };
+      setSelections(normalizedSelections);
+      setSavedSelections(normalizedSelections);
     }
     setOrdersRefreshTrigger(prev => prev + 1);
   };
@@ -440,17 +542,10 @@ const EmployeeDashboard = () => {
     setTimeout(() => setMessage({ type: '', text: '' }), 5000);
   };
 
-  const hasChanges = () => {
-    if (!savedSelections) return true;
-    return MEAL_TYPES.some(({ key }) => {
-      const current = [...(selections[key] || [])].sort().join(',');
-      const saved = [...(savedSelections[key] || [])].sort().join(',');
-      return current !== saved;
-    });
-  };
-
   const getSelectedCount = () => {
-    return MEAL_TYPES.reduce((sum, { key }) => sum + (selections[key]?.length || 0), 0);
+    return MEAL_TYPES.filter(({ key }) =>
+      selections[key] === true
+    ).length;
   };
 
   const resetSelections = () => {
@@ -544,20 +639,18 @@ const EmployeeDashboard = () => {
         <div className="date-card-inner">
           <div>
             <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: 'rgba(255, 255, 255, 0.18)', padding: '2px 10px', borderRadius: '12px', fontSize: '11px', fontWeight: '700', letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: '6px' }}>
-              <span>{viewMode === 'daily' ? 'PRE-ORDER FOR TOMORROW' : 'UPCOMING WEEK'}</span>
+              <span>PRE-ORDER FOR TOMORROW</span>
             </div>
             <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
               <Calendar size={22} style={{ color: 'white' }} />
-              {viewMode === 'daily' ? formatDate(getTomorrowDate()) : 'Weekly Meal Selection'}
+              {formatDate(getTomorrowDate())}
             </h3>
-            {viewMode === 'daily' && (
-              <p style={{ margin: '4px 0 0 0', fontSize: '13px', opacity: 0.9, display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <Info size={14} />
-                <span>Orders close at {formatDeadlineTime()} today ({formatDate(getLocalDateString())})</span>
-              </p>
-            )}
+            <p style={{ margin: '4px 0 0 0', fontSize: '13px', opacity: 0.9, display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <Info size={14} />
+              <span>Orders close at {formatDeadlineTime()} today ({formatDate(getLocalDateString())})</span>
+            </p>
           </div>
-          <div className="date-card-controls">
+          <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
             <div className="default-menu-toggle" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <label htmlFor="showDefaultMenu" style={{ fontSize: '13px', fontWeight: '600', color: 'white', cursor: 'pointer' }}>
                 Show Default Menu
@@ -595,122 +688,161 @@ const EmployeeDashboard = () => {
         </div>
       </div>
 
-      {viewMode === 'weekly' ? (
-        <WeeklyMealSelector
-          showDefaultMenu={showDefaultMenu}
-          setShowDefaultMenu={setShowDefaultMenu}
-          onSaveSuccess={() => setOrdersRefreshTrigger(prev => prev + 1)}
-        />
-      ) : (
-        <>
-          {!menu ? (
-            <div className="no-menu-card">
-              <div className="empty-state">
-                <span className="empty-icon">
-                  <Utensils size={40} style={{ color: 'var(--text-tertiary)' }} />
-                </span>
-                <h3>No Menu Available</h3>
-                <p>The menu for this date hasn't been set yet.</p>
-                <p className="small-text">Please check back later or contact the admin.</p>
-              </div>
-            </div>
-          ) : (
-            <>
-              <div className="meals-grid">
-                {MEAL_TYPES.map(({ key, label, icon: Icon }) => {
-                  const availableItems = getAvailableItems(key);
-                  const selectedItems = selections[key] || [];
+      {!menu && (
+        <div className="no-menu-card">
+          <div className="empty-state">
+            <span className="empty-icon">
+              <Utensils size={40} style={{ color: 'var(--text-tertiary)' }} />
+            </span>
+            <h3>No Menu Available</h3>
+            <p>The menu for this date hasn't been published yet.</p>
+            <p className="small-text">
+              You can still select your meal preferences below.
+            </p>
+          </div>
+        </div>
+      )}
 
-                  return (
-                    <div className={`meal-card ${selectedItems.length > 0 ? 'selected' : ''}`} key={key}>
-                      <div className="meal-header">
-                        <div style={{display: 'flex', alignItems: 'center', gap: '12px'}}>
-                          <div className="meal-icon">
-                            <Icon size={20} style={{ color: 'var(--accent-primary)' }} />
-                          </div>
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                            <h3>{label}</h3>
-                            <div className="meal-timing">
-                              <Clock size={12} style={{ marginRight: '4px', verticalAlign: 'middle' }} />
-                              {mealTimings[key].start} - {mealTimings[key].end}
-                            </div>
-                          </div>
-                        </div>
-                        <span className="meal-item-count">{selectedItems.length} selected</span>
-                      </div>
+      <div className="meals-grid">
+        {MEAL_TYPES.map(({ key, label, icon: Icon }) => {
+          const availableItems = getAvailableItems(key);
+          const isInterested = selections[key] === true;
 
-                      {availableItems.length === 0 ? (
-                        <p className="no-items">No items available for this meal</p>
-                      ) : (
-                        <div className="item-chip-row">
-                          {availableItems.map(item => {
-                            const isSelected = selectedItems.includes(item.name);
-                            const isOutOfStock = item.quantity !== null && item.quantity <= 0;
-                            return (
-                              <button
-                                key={item.name}
-                                type="button"
-                                className={`item-chip ${isSelected ? 'selected' : ''}`}
-                                onClick={() => handleItemToggle(key, item.name)}
-                                disabled={isOutOfStock || (deadlinePassed && !isSelected)}
-                                title={isOutOfStock ? `${item.name} is out of stock` : item.quantity !== null ? `${item.quantity} available` : item.name}
-                              >
-                                {isSelected && <Check size={12} />}
-                                <span>{item.name}</span>
-                                {item.quantity !== null && (
-                                  <span style={{ marginLeft: '6px', fontSize: '11px', opacity: 0.75 }}>
-                                    {isOutOfStock ? 'Out of stock' : `${item.quantity} left`}
-                                  </span>
-                                )}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-
-              <div className="summary-section">
-                <div className="summary-card">
-                  <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <ClipboardList size={20} style={{ color: 'var(--accent-primary)' }} />
-                    Order Summary
-                  </h3>
-                  <div className="summary-stats">
-                    <div className="stat">
-                      <span className="stat-label">Meals Selected</span>
-                      <span className="stat-value">{getSelectedCount()} items</span>
-                    </div>
-                    {savedSelections && (
-                      <div className="stat">
-                        <span className="stat-label">Status</span>
-                        <span className={`stat-value ${hasChanges() ? 'warning' : 'success'}`}>
-                          {hasChanges() ? 'Unsaved Changes' : 'Saved'}
-                        </span>
-                      </div>
-                    )}
+          return (
+            <div
+              className={`meal-card ${isInterested ? 'selected' : ''}`}
+              key={key}
+            >
+              <div className="meal-header">
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px'
+                  }}
+                >
+                  <div className="meal-icon">
+                    <Icon
+                      size={20}
+                      style={{ color: 'var(--accent-primary)' }}
+                    />
                   </div>
 
-                  <button
-                    className="btn btn-primary btn-full save-btn"
-                    onClick={handleSubmit}
-                    disabled={deadlinePassed || saving || !hasChanges() || offline}
-                  >
-                    {saving ? 'Saving...' : hasChanges() ? 'Save Preferences' : 'No Changes'}
-                  </button>
-
-                  <p className="help-text" style={{ display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'center' }}>
-                    <Info size={14} style={{ color: 'var(--accent-primary)' }} />
-                    <span>Meal selection closes at {formatDeadlineTime()} daily.</span>
-                  </p>
+                  <div>
+                    <h3>{label}</h3>
+                    <div className="meal-timing">
+                      <Clock
+                        size={12}
+                        style={{
+                          marginRight: '4px',
+                          verticalAlign: 'middle'
+                        }}
+                      />
+                      {mealTimings[key].start} - {mealTimings[key].end}
+                    </div>
+                  </div>
                 </div>
+
+                <label
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    cursor: deadlinePassed ? 'not-allowed' : 'pointer'
+                  }}
+                >
+                  <span style={{ fontSize: '13px', fontWeight: 600 }}>
+                    {isInterested ? 'Interested' : 'Not Interested'}
+                  </span>
+                  <input
+                    type="checkbox"
+                    checked={isInterested}
+                    onChange={() => handleMealToggle(key)}
+                    disabled={deadlinePassed || saving || offline}
+                    style={{
+                      width: '20px',
+                      height: '20px',
+                      accentColor: 'var(--accent-primary)'
+                    }}
+                  />
+                </label>
               </div>
-            </>
-          )}
-        </>
-      )}
+
+              <div className="assigned-menu">
+                <strong>Assigned Menu</strong>
+                {availableItems.length > 0 ? (
+                  <p>{availableItems.map(item => item.name).join(', ')}</p>
+                ) : (
+                  <p className="no-items">
+                    Menu items have not been published yet.
+                  </p>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="summary-section">
+        <div className="summary-card">
+          <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <ClipboardList
+              size={20}
+              style={{ color: 'var(--accent-primary)' }}
+            />
+            Meal Preference Summary
+          </h3>
+
+          <div className="summary-stats">
+            <div className="stat">
+              <span className="stat-label">Meals Requested</span>
+              <span className="stat-value">{getSelectedCount()} / 4</span>
+            </div>
+
+            {savedSelections && (
+              <div className="stat">
+                <span className="stat-label">Status</span>
+                <span
+                  className={`stat-value ${hasChanges() ? 'warning' : 'success'
+                    }`}
+                >
+                  {hasChanges() ? 'Unsaved Changes' : 'Saved'}
+                </span>
+              </div>
+            )}
+          </div>
+
+          <button
+            className="btn btn-primary btn-full save-btn"
+            onClick={handleSubmit}
+            disabled={deadlinePassed || saving || !hasChanges() || offline}
+          >
+            {saving
+              ? 'Saving...'
+              : hasChanges()
+                ? 'Save Meal Preferences'
+                : 'No Changes'}
+          </button>
+
+          <p
+            className="help-text"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              justifyContent: 'center'
+            }}
+          >
+            <Info
+              size={14}
+              style={{ color: 'var(--accent-primary)' }}
+            />
+            <span>
+              Meal selection closes at {formatDeadlineTime()} daily.
+            </span>
+          </p>
+        </div>
+      </div>
 
       {/* My Orders Section */}
       <MyOrders
@@ -741,16 +873,22 @@ const EmployeeDashboard = () => {
                 <h3>Meals Selected</h3>
                 <div className="meals-list">
                   {MEAL_TYPES.map(({ key, label, icon: Icon }) => (
-                    selections[key]?.length > 0 && (
-                      <div key={key} className="meal-item-popup" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <Icon size={16} style={{ color: 'var(--accent-primary)' }} />
-                        <span>{label}: {selections[key].join(', ')}</span>
-                      </div>
-                    )
+                    <div
+                      key={key}
+                      className="meal-item-popup"
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px'
+                      }}
+                    >
+                      <Icon size={16} />
+
+                      <span>
+                        {label}: {selections[key] ? 'Interested' : 'Not Interested'}
+                      </span>
+                    </div>
                   ))}
-                  {getSelectedCount() === 0 && (
-                    <p className="no-meals-selected">No items selected</p>
-                  )}
                 </div>
               </div>
               <div className="popup-info">
@@ -813,4 +951,3 @@ const EmployeeDashboard = () => {
 };
 
 export default EmployeeDashboard;
-

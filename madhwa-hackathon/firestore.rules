@@ -1,18 +1,24 @@
+
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
 
     // =========================================================
-    // HELPER
+    // HELPER FUNCTIONS
     // =========================================================
 
     function isSignedIn() {
       return request.auth != null;
     }
 
-    // Role stored at users/<uid>.role. Values must be exactly
-    // 'employee', 'admin' or 'super_admin'.
+    function userExists() {
+      return isSignedIn()
+        && exists(
+          /databases/$(database)/documents/users/$(request.auth.uid)
+        );
+    }
+
     function userRole() {
       return get(
         /databases/$(database)/documents/users/$(request.auth.uid)
@@ -20,28 +26,74 @@ service cloud.firestore {
     }
 
     function hasRole(role) {
-      return isSignedIn()
-        && exists(
-          /databases/$(database)/documents/users/$(request.auth.uid)
-        )
-        && userRole() == role;
+      return userExists() && userRole() == role;
     }
 
-    // Canteen admin: menus, reports, settings, announcements.
     function isAdmin() {
       return hasRole('admin');
     }
 
-    // User-account manager: adds/removes admins and employees.
-    // Separate from admin — has no canteen management access.
     function isSuperAdmin() {
       return hasRole('super_admin');
     }
 
-    // Roles a super admin may assign. 'super_admin' is intentionally
-    // excluded: super admins are only created from the Firebase Console.
     function isAssignableRole(role) {
       return role in ['employee', 'admin'];
+    }
+
+    // New meal preferences must be booleans.
+    function validNewMealPreferences(data) {
+      return data.breakfast is bool
+        && data.lunch is bool
+        && data.snacks is bool
+        && data.dinner is bool;
+    }
+
+    // Historical arrays may remain unchanged during an update.
+    // Employees cannot create new arrays or modify existing arrays.
+    function validUpdatedMealValue(field) {
+      return request.resource.data[field] is bool
+        || (
+          field in resource.data
+          && resource.data[field] is list
+          && request.resource.data[field] == resource.data[field]
+        );
+    }
+
+    function validUpdatedMealPreferences() {
+      return validUpdatedMealValue('breakfast')
+        && validUpdatedMealValue('lunch')
+        && validUpdatedMealValue('snacks')
+        && validUpdatedMealValue('dinner');
+    }
+
+    function validMealSelectionMetadata(userId, date) {
+      let data = request.resource.data;
+
+      return data.keys().hasAll([
+          'breakfast',
+          'lunch',
+          'snacks',
+          'dinner'
+        ])
+        && (!('employeeId' in data)
+            || data.employeeId == userId)
+        && (!('userId' in data)
+            || data.userId == userId)
+        && (!('date' in data)
+            || data.date == date)
+        && (!('email' in data)
+            || data.email is string)
+        && (!('status' in data)
+            || data.status is string)
+        && (!('timestamp' in data)
+            || data.timestamp is string
+            || data.timestamp is timestamp)
+        && (!('updatedAt' in data)
+            || data.updatedAt is string
+            || data.updatedAt is timestamp)
+        && (!('modified' in data)
+            || data.modified is bool);
     }
 
 
@@ -51,62 +103,57 @@ service cloud.firestore {
 
     match /users/{userId} {
 
-      // A user can read their own profile.
-      // Admin can read all profiles (used by the analytics dashboard).
-      // Super admin can read all profiles (to manage accounts).
       allow read: if isSignedIn()
-                  && (
-                    request.auth.uid == userId
-                    || isAdmin()
-                    || isSuperAdmin()
-                  );
+        && (
+          request.auth.uid == userId
+          || isAdmin()
+          || isSuperAdmin()
+        );
 
-      // Only super admins can create/update/delete user profiles, and only
-      // for admin/employee accounts. Nobody — including admins — can write
-      // a 'super_admin' role or modify/delete an existing super admin.
       allow create: if isSuperAdmin()
-                    && isAssignableRole(request.resource.data.role);
+        && isAssignableRole(request.resource.data.role);
 
       allow update: if isSuperAdmin()
-                    && isAssignableRole(resource.data.role)
-                    && isAssignableRole(request.resource.data.role);
+        && isAssignableRole(resource.data.role)
+        && isAssignableRole(request.resource.data.role);
 
       allow delete: if isSuperAdmin()
-                    && isAssignableRole(resource.data.role);
+        && isAssignableRole(resource.data.role);
     }
 
 
     // =========================================================
-    // MENUS
+    // MENUS — ADMIN CONTROLLED
     // =========================================================
 
     match /menus/{date} {
 
-      // Logged-in users can view menus.
       allow read: if isSignedIn();
 
-      // Only admins can create/update/delete menus.
       allow create, update, delete: if isAdmin();
     }
 
 
     // =========================================================
-    // DAILY STAPLES & DEFAULT MENU
+    // DAILY STAPLES — ADMIN CONTROLLED
     // =========================================================
 
     match /dailyStaples/{documentId} {
-      // Logged-in users can view Daily Staples.
+
       allow read: if isSignedIn();
 
-      // Only admins can modify Daily Staples.
       allow create, update, delete: if isAdmin();
     }
 
+
+    // =========================================================
+    // DEFAULT MENU — ADMIN CONTROLLED
+    // =========================================================
+
     match /defaultMenu/{documentId} {
-      // Logged-in users can view Default Menu.
+
       allow read: if isSignedIn();
 
-      // Only admins can modify Default Menu.
       allow create, update, delete: if isAdmin();
     }
 
@@ -117,10 +164,8 @@ service cloud.firestore {
 
     match /settings/{settingId} {
 
-      // Logged-in users can read settings.
       allow read: if isSignedIn();
 
-      // Only admins can modify settings.
       allow create, update, delete: if isAdmin();
     }
 
@@ -131,12 +176,33 @@ service cloud.firestore {
 
     match /mealSelections/{date}/users/{userId} {
 
-      // Employee can read/write their own selection.
-      allow read, create, update: if isSignedIn()
-                                  && request.auth.uid == userId;
+      // Employees can read their own selections.
+      // Admins can read all employee selections.
 
-      // Admin can read all employee selections.
-      allow read: if isAdmin();
+      allow read: if isSignedIn()
+        && (
+          request.auth.uid == userId
+          || isAdmin()
+        );
+
+      // New documents must use boolean meal preferences.
+
+      allow create: if isSignedIn()
+        && request.auth.uid == userId
+        && validMealSelectionMetadata(userId, date)
+        && validNewMealPreferences(request.resource.data);
+
+      // Updates allow boolean preferences.
+      // Historical arrays are allowed only when unchanged.
+
+      allow update: if isSignedIn()
+        && request.auth.uid == userId
+        && validMealSelectionMetadata(userId, date)
+        && validUpdatedMealPreferences();
+
+      // Employees cannot delete meal-selection documents.
+
+      allow delete: if false;
     }
 
 
@@ -146,12 +212,16 @@ service cloud.firestore {
 
     match /workingModes/{date}/users/{userId} {
 
-      // Employee can read/write their own working mode.
-      allow read, create, update: if isSignedIn()
-                                  && request.auth.uid == userId;
+      allow read: if isSignedIn()
+        && (
+          request.auth.uid == userId
+          || isAdmin()
+        );
 
-      // Admin can read all working modes.
-      allow read: if isAdmin();
+      allow create, update: if isSignedIn()
+        && request.auth.uid == userId;
+
+      allow delete: if false;
     }
 
 
@@ -161,7 +231,6 @@ service cloud.firestore {
 
     match /reports/{date} {
 
-      // Only admins can access reports.
       allow read, create, update, delete: if isAdmin();
     }
 
@@ -172,10 +241,8 @@ service cloud.firestore {
 
     match /announcements/{announcementId} {
 
-      // Logged-in users (employees) can read announcements.
       allow read: if isSignedIn();
 
-      // Only admins can create/update/delete announcements.
       allow create, update, delete: if isAdmin();
     }
 
@@ -185,6 +252,7 @@ service cloud.firestore {
     // =========================================================
 
     match /{document=**} {
+
       allow read, write: if false;
     }
   }
