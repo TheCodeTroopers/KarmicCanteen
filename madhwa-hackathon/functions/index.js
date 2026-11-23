@@ -3,6 +3,7 @@
 const functions = require('firebase-functions/v1');
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const admin = require('firebase-admin');
+const { DateTime } = require('luxon');
 admin.initializeApp();
 
 // =========================================================
@@ -161,7 +162,136 @@ exports.deleteUserAccount = onCall(async (request) => {
 // SCHEDULED JOBS (existing stubs)
 // =========================================================
 
-// Scheduled function to send reminders at 6 PM daily
+// =========================================================
+// CANCEL BOOKING (employee callable)
+// =========================================================
+// Secure backend cancellation endpoint enforcing:
+// 1. Mandatory authentication (authenticated employee UID only)
+// 2. Strict ISO date validation (YYYY-MM-DD)
+// 3. Document ownership and existence in mealSelections/{date}/users/{uid}
+// 4. Rejection of already-cancelled bookings
+// 5. Dynamic deadline retrieval from settings/deadline
+// 6. Explicit Asia/Kolkata timezone calculation for the calendar day prior to the meal
+// 7. Atomic Firestore transaction ensuring consistency under concurrent requests
+exports.cancelBooking = onCall(async (request) => {
+  // 1. Authenticate caller
+  if (!request.auth) {
+    throw new HttpsError('unauthenticated', 'You must be signed in to cancel a meal booking.');
+  }
+
+  const uid = request.auth.uid;
+  if (!uid || typeof uid !== 'string') {
+    throw new HttpsError('unauthenticated', 'Invalid authentication credentials.');
+  }
+
+  // 2. Validate requested meal date format (YYYY-MM-DD)
+  const rawDate = request.data?.date;
+  const dateStr = typeof rawDate === 'string' ? rawDate.trim() : '';
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+    throw new HttpsError('invalid-argument', 'Valid date in YYYY-MM-DD format is required.');
+  }
+
+  // Parse meal date strictly in Asia/Kolkata timezone
+  const mealDate = DateTime.fromISO(dateStr, { zone: 'Asia/Kolkata' });
+  if (!mealDate.isValid) {
+    throw new HttpsError('invalid-argument', 'The provided meal date is invalid.');
+  }
+
+  const bookingRef = admin
+    .firestore()
+    .collection('mealSelections')
+    .doc(dateStr)
+    .collection('users')
+    .doc(uid);
+
+  const deadlineRef = admin.firestore().doc('settings/deadline');
+
+  // 3. Execute cancellation inside an atomic transaction
+  const result = await admin.firestore().runTransaction(async (transaction) => {
+    // Read booking document
+    const bookingSnap = await transaction.get(bookingRef);
+    if (!bookingSnap.exists) {
+      throw new HttpsError('not-found', 'No active meal booking found for the specified date.');
+    }
+
+    const bookingData = bookingSnap.data() || {};
+    const currentStatus = String(bookingData.status || '').toLowerCase();
+    if (currentStatus === 'cancelled') {
+      throw new HttpsError('failed-precondition', 'This meal booking is already cancelled.');
+    }
+
+    // Read deadline configuration document
+    const deadlineSnap = await transaction.get(deadlineRef);
+    if (!deadlineSnap.exists) {
+      throw new HttpsError('internal', 'Cancellation deadline settings are not configured in the system.');
+    }
+
+    const deadlineData = deadlineSnap.data() || {};
+    const deadlineHour = Number(deadlineData.deadlineHour ?? 21);
+    const deadlineMinute = Number(deadlineData.deadlineMinute ?? 0);
+
+    if (
+      !Number.isInteger(deadlineHour) ||
+      deadlineHour < 0 ||
+      deadlineHour > 23 ||
+      !Number.isInteger(deadlineMinute) ||
+      deadlineMinute < 0 ||
+      deadlineMinute > 59
+    ) {
+      throw new HttpsError('internal', 'Configured cancellation deadline time is invalid.');
+    }
+
+    // 4. Calculate deadline in Asia/Kolkata: previous calendar day before the meal
+    const cancellationDeadline = mealDate
+      .minus({ days: 1 })
+      .set({
+        hour: deadlineHour,
+        minute: deadlineMinute,
+        second: 0,
+        millisecond: 0
+      });
+
+    // 5. Trusted server time converted to Asia/Kolkata
+    const serverTimestamp = admin.firestore.Timestamp.now();
+    const nowKolkata = DateTime.fromJSDate(serverTimestamp.toDate(), { zone: 'Asia/Kolkata' });
+
+    // Reject if current server time is equal to or after the deadline
+    if (nowKolkata.toMillis() >= cancellationDeadline.toMillis()) {
+      throw new HttpsError(
+        'failed-precondition',
+        `Cancellation deadline passed on ${cancellationDeadline.toFormat('dd LLL yyyy, hh:mm a')} IST.`
+      );
+    }
+
+    // 6. Update booking safely
+    const cancellationIso = nowKolkata.toISO();
+    const cancelledPayload = {
+      ...bookingData,
+      status: 'cancelled',
+      cancelledAt: admin.firestore.FieldValue.serverTimestamp(),
+      cancellationTimestamp: cancellationIso,
+      cancellationDate: nowKolkata.toISODate(),
+      cancellationTime: nowKolkata.toFormat('hh:mm:ss a'),
+      breakfast: false,
+      lunch: false,
+      snacks: false,
+      dinner: false
+    };
+
+    transaction.set(bookingRef, cancelledPayload, { merge: true });
+
+    return {
+      success: true,
+      date: dateStr,
+      status: 'cancelled',
+      cancelledAt: cancellationIso
+    };
+  });
+
+  return result;
+});
+
+
 exports.sendMealReminder = functions.pubsub
   .schedule('0 18 * * *')
   .timeZone('Asia/Kolkata')

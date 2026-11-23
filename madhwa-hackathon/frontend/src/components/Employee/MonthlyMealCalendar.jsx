@@ -205,7 +205,11 @@ const MonthlyMealCalendar = ({
     return () => unsubscribe();
   }, []);
 
+
+
   // 2. Load the **default weekday** menu (priority: defaultMenu/config → menus/default → dailyStaples/config)
+  // Added diagnostic logging
+  console.log('[MonthlyMealCalendar] Starting default menu load');
   useEffect(() => {
     const loadDefaultMenu = async () => {
       try {
@@ -253,6 +257,8 @@ const MonthlyMealCalendar = ({
     };
     loadDefaultMenu();
   }, []);
+
+
 
   // 3. When a date is clicked, decide which menu to show (date‑specific or default)
   const handleDateClick = (dateStr) => {
@@ -312,6 +318,8 @@ const MonthlyMealCalendar = ({
 
     return () => unsubscribe();
   }, []);
+
+
 
   // 3. Fetch employee bookings (optimized read with IndexedDB cache)
   const loadEmployeeBookings = useCallback(async () => {
@@ -1105,7 +1113,7 @@ const MonthlyMealCalendar = ({
         isOpen={isDetailPanelOpen}
         onClose={() => setIsDetailPanelOpen(false)}
         dateStr={selectedDate}
-        menuData={menusMap[selectedDate]}
+        menuData={selectedMenuData}
         bookingData={bookingsMap[selectedDate]}
         deadlineHour={deadlineHour}
         deadlineMinute={deadlineMinute}

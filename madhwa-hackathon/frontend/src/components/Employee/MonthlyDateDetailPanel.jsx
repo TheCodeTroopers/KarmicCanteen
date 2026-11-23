@@ -1,7 +1,8 @@
 // src/components/Employee/MonthlyDateDetailPanel.jsx
 import React, { useState, useEffect, useMemo } from 'react';
 import { doc, setDoc } from 'firebase/firestore';
-import { db } from '../../firebase/config';
+import { httpsCallable } from 'firebase/functions';
+import { db, functions } from '../../firebase/config';
 import { useAuth } from '../../context/AuthContext';
 import { cacheDocument, docCacheKey } from '../../utils/indexedDbCache';
 import { getLocalDateString } from '../../utils/dateUtils';
@@ -343,18 +344,29 @@ const MonthlyDateDetailPanel = ({
     }
   };
 
-  // Cancel booking
+  // Cancel booking via secure backend Cloud Function
   const handleCancelBooking = async () => {
-    if (!cancellationEligible.eligible) {
-      showMessage('error', `Cannot cancel: ${cancellationEligible.reason}`);
+    if (cancelling) return;
+
+    if (!currentUser) {
+      showMessage('error', 'Please log in to cancel meals.');
+      return;
+    }
+
+    if (!bookingData || bookingData.status === 'cancelled' || bookingData.count === 0) {
+      showMessage('error', 'No active booking found to cancel.');
       return;
     }
 
     try {
       setCancelling(true);
-      const selectionRef = doc(db, 'mealSelections', dateStr, 'users', currentUser.uid);
+
+      // Invoke the secure callable Cloud Function (UID is determined server-side from auth token)
+      const cancelMealBooking = httpsCallable(functions, 'cancelBooking');
+      const result = await cancelMealBooking({ date: dateStr });
+
       const now = new Date();
-      const cancellationTimestamp = now.toISOString();
+      const cancellationTimestamp = result.data?.cancelledAt || now.toISOString();
 
       const cancelledPayload = {
         ...(bookingData?.raw || {}),
@@ -378,7 +390,6 @@ const MonthlyDateDetailPanel = ({
         dinner: false
       };
 
-      await setDoc(selectionRef, cancelledPayload, { merge: true });
       await cacheDocument(
         docCacheKey('mealSelections', dateStr, 'users', currentUser.uid),
         cancelledPayload
@@ -398,7 +409,19 @@ const MonthlyDateDetailPanel = ({
       }
     } catch (err) {
       console.error('[MonthlyDateDetailPanel] Error cancelling booking:', err);
-      showMessage('error', 'Failed to cancel booking. Please try again.');
+      let errorMsg = 'Failed to cancel booking. Please try again.';
+      if (err?.code === 'functions/failed-precondition' || err?.code === 'failed-precondition') {
+        errorMsg = err.message || 'Cancellation deadline has passed.';
+      } else if (err?.code === 'functions/unauthenticated' || err?.code === 'unauthenticated') {
+        errorMsg = 'You must be signed in to cancel a booking.';
+      } else if (err?.code === 'functions/not-found' || err?.code === 'not-found') {
+        errorMsg = err.message || 'No active meal booking found for this date.';
+      } else if (err?.code === 'functions/unavailable' || err?.code === 'unavailable') {
+        errorMsg = 'Network error: Service temporarily unavailable. Please check your connection.';
+      } else if (err?.message) {
+        errorMsg = err.message;
+      }
+      showMessage('error', errorMsg);
     } finally {
       setCancelling(false);
     }
@@ -426,6 +449,9 @@ const MonthlyDateDetailPanel = ({
                 <span className={`panel-relative-badge badge-${dateInfo.relative.toLowerCase()}`}> 
                   {dateInfo.relative}
                 </span>
+              )}
+              {isDefaultMenu && (
+                <span className="panel-default-badge badge-default">(Default Menu)</span>
               )}
             </div>
             <h2>{dateInfo.formatted}</h2>
