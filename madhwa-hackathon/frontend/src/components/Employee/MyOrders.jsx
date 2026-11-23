@@ -6,9 +6,9 @@ import { getDocWithCache, cacheDocument, docCacheKey } from '../../utils/indexed
 import { useAuth } from '../../context/AuthContext';
 import { getLocalDateString } from '../../utils/dateUtils';
 import {
-  ShoppingBag, Calendar, Clock, CheckCircle2, XCircle, 
+  ShoppingBag, Calendar, Clock, CheckCircle2, XCircle,
   Coffee, Soup, Cookie, ChefHat, RefreshCw, Lock, AlertTriangle,
-  Utensils, Check, X, Pencil
+  Utensils, X, Pencil
 } from 'lucide-react';
 import './MyOrders.css';
 
@@ -26,19 +26,37 @@ const MEAL_LABELS = {
   dinner: 'Dinner',
 };
 
-const normalizeMenuItem = (item) => {
-  if (typeof item === 'string') return { name: item.trim(), available: true, quantity: null };
-  if (item && typeof item === 'object') {
-    const name = String(item.name || '').trim();
-    let quantity = null;
-    if (item.quantity !== null && item.quantity !== undefined && item.quantity !== '') {
-      const parsed = Number(item.quantity);
-      quantity = Number.isFinite(parsed) ? Math.max(0, parsed) : null;
-    }
-    return { name, available: item.available !== false, quantity };
-  }
-  return { name: String(item || '').trim(), available: true, quantity: null };
+const MEAL_KEYS = ['breakfast', 'lunch', 'snacks', 'dinner'];
+
+// Supports both the new boolean format and historical array-based records.
+const toMealPreference = (value) => {
+  if (typeof value === 'boolean') return value;
+  if (Array.isArray(value)) return value.length > 0;
+  return false;
 };
+
+// Keep historical food-item names visible. New boolean records display a simple
+// Interested label because employees no longer select individual menu items.
+const toDisplayItems = (value, originalValue) => {
+  if (typeof value === 'boolean') return value ? ['Interested'] : [];
+
+  const source = Array.isArray(value) && value.length > 0
+    ? value
+    : (Array.isArray(originalValue) ? originalValue : []);
+
+  return source.map(item => {
+    if (typeof item === 'string') return item;
+    if (item && typeof item === 'object') return item.name || '';
+    return '';
+  }).filter(Boolean);
+};
+
+const toMealPreferences = (data = {}) => ({
+  breakfast: toMealPreference(data.breakfast),
+  lunch: toMealPreference(data.lunch),
+  snacks: toMealPreference(data.snacks),
+  dinner: toMealPreference(data.dinner),
+});
 
 const getDismissedOrdersKey = (uid) => `dismissed_orders_${uid || 'anonymous'}`;
 
@@ -77,12 +95,13 @@ const MyOrders = ({
 
   // Edit Order state
   const [editingOrder, setEditingOrder] = useState(null);
-  const [editingMenu, setEditingMenu] = useState(null);
-  const [loadingMenu, setLoadingMenu] = useState(false);
-  const [editSelections, setEditSelections] = useState({ breakfast: [], lunch: [], snacks: [], dinner: [] });
+  const [editSelections, setEditSelections] = useState({
+    breakfast: false,
+    lunch: false,
+    snacks: false,
+    dinner: false,
+  });
   const [savingEdit, setSavingEdit] = useState(false);
-  const [staples, setStaples] = useState({ breakfast: [], lunch: [], snacks: [], dinner: [] });
-  const [staplesLoaded, setStaplesLoaded] = useState(false);
 
   useEffect(() => {
     setDismissedDates(loadDismissedOrders(currentUser?.uid));
@@ -140,34 +159,20 @@ const MyOrders = ({
           const data = result.data;
           const isCancelled = String(data.status || '').toLowerCase() === 'cancelled';
 
-          const breakfastRaw = Array.isArray(data.breakfast) ? data.breakfast : [];
-          const lunchRaw = Array.isArray(data.lunch) ? data.lunch : [];
-          const snacksRaw = Array.isArray(data.snacks) ? data.snacks : [];
-          const dinnerRaw = Array.isArray(data.dinner) ? data.dinner : [];
-
-          // Normalize items to simple strings (name) for UI rendering
-          const normalizeItems = (arr) => arr.map(item => {
-            if (typeof item === 'string') return item;
-            if (item && typeof item === 'object') return item.name || '';
-            return '';
-          }).filter(Boolean);
-
           const displayMeals = {
-            breakfast: normalizeItems(breakfastRaw).length > 0 ? normalizeItems(breakfastRaw) : (data.originalSelections?.breakfast || []),
-            lunch: normalizeItems(lunchRaw).length > 0 ? normalizeItems(lunchRaw) : (data.originalSelections?.lunch || []),
-            snacks: normalizeItems(snacksRaw).length > 0 ? normalizeItems(snacksRaw) : (data.originalSelections?.snacks || []),
-            dinner: normalizeItems(dinnerRaw).length > 0 ? normalizeItems(dinnerRaw) : (data.originalSelections?.dinner || []),
+            breakfast: toDisplayItems(data.breakfast, data.originalSelections?.breakfast),
+            lunch: toDisplayItems(data.lunch, data.originalSelections?.lunch),
+            snacks: toDisplayItems(data.snacks, data.originalSelections?.snacks),
+            dinner: toDisplayItems(data.dinner, data.originalSelections?.dinner),
           };
 
-          // Keep all orders visible (even if no items — cancelled orders may have no active items)
-          const totalItemsCount =
-            (displayMeals.breakfast?.length || 0) +
-            (displayMeals.lunch?.length || 0) +
-            (displayMeals.snacks?.length || 0) +
-            (displayMeals.dinner?.length || 0);
+          // Count selected meal types for new boolean records, or individual
+          // food items for historical array-based records.
+          const isBooleanFormat = MEAL_KEYS.some(key => typeof data[key] === 'boolean');
+          const totalItemsCount = isBooleanFormat
+            ? MEAL_KEYS.filter(key => toMealPreference(data[key])).length
+            : MEAL_KEYS.reduce((total, key) => total + displayMeals[key].length, 0);
 
-          // A confirmed order with 0 items is an empty placeholder — flag it so the UI
-          // can show "No meals selected" instead of "Confirmed".
           const hasNoMeals = totalItemsCount === 0;
           const effectiveStatus = isCancelled
             ? 'cancelled'
@@ -323,11 +328,12 @@ const MyOrders = ({
         hour12: true,
       });
 
-      // Preserve all existing order data in Firestore!
-      const breakfast = Array.isArray(order.meals?.breakfast) ? order.meals.breakfast : (order.rawDoc?.breakfast || []);
-      const lunch = Array.isArray(order.meals?.lunch) ? order.meals.lunch : (order.rawDoc?.lunch || []);
-      const snacks = Array.isArray(order.meals?.snacks) ? order.meals.snacks : (order.rawDoc?.snacks || []);
-      const dinner = Array.isArray(order.meals?.dinner) ? order.meals.dinner : (order.rawDoc?.dinner || []);
+      // Preserve the original Firestore value types: booleans for new records
+      // and arrays for historical records. Never write display-only labels back.
+      const breakfast = order.rawDoc?.breakfast ?? [];
+      const lunch = order.rawDoc?.lunch ?? [];
+      const snacks = order.rawDoc?.snacks ?? [];
+      const dinner = order.rawDoc?.dinner ?? [];
 
       const cancelledDoc = {
         ...(order.rawDoc || {}),
@@ -358,7 +364,12 @@ const MyOrders = ({
             cancellationTimestamp,
             cancellationDate,
             cancellationTime,
-            meals: { breakfast, lunch, snacks, dinner },
+            meals: {
+              breakfast: toDisplayItems(breakfast, cancelledDoc.originalSelections?.breakfast),
+              lunch: toDisplayItems(lunch, cancelledDoc.originalSelections?.lunch),
+              snacks: toDisplayItems(snacks, cancelledDoc.originalSelections?.snacks),
+              dinner: toDisplayItems(dinner, cancelledDoc.originalSelections?.dinner),
+            },
             rawDoc: cancelledDoc,
           };
         }
@@ -406,51 +417,6 @@ const MyOrders = ({
     });
   };
 
-  const fetchMenuForDate = async (dateStr) => {
-    setLoadingMenu(true);
-    try {
-      const menuRef = doc(db, 'menus', dateStr);
-      const menuRes = await getDocWithCache(menuRef, docCacheKey('menus', dateStr));
-      if (menuRes.fromCache) setOffline(true);
-      const dateMenu = menuRes.exists && menuRes.data ? menuRes.data : null;
-
-      let staplesData = staples;
-      if (!staplesLoaded) {
-        let stapleRef = doc(db, 'menus', 'default');
-        let stapleRes = await getDocWithCache(stapleRef, docCacheKey('menus', 'default'));
-        if (stapleRes.fromCache) setOffline(true);
-
-        if (!stapleRes.exists) {
-          stapleRef = doc(db, 'defaultMenu', 'config');
-          stapleRes = await getDocWithCache(stapleRef, docCacheKey('defaultMenu', 'config'));
-          if (stapleRes.fromCache) setOffline(true);
-        }
-        if (!stapleRes.exists) {
-          stapleRef = doc(db, 'dailyStaples', 'config');
-          stapleRes = await getDocWithCache(stapleRef, docCacheKey('dailyStaples', 'config'));
-          if (stapleRes.fromCache) setOffline(true);
-        }
-
-        if (stapleRes.exists && stapleRes.data) {
-          staplesData = {
-            breakfast: stapleRes.data.breakfast || [],
-            lunch: stapleRes.data.lunch || [],
-            snacks: stapleRes.data.snacks || [],
-            dinner: stapleRes.data.dinner || [],
-          };
-          setStaples(staplesData);
-          setStaplesLoaded(true);
-        }
-      }
-
-      setEditingMenu(dateMenu);
-    } catch (err) {
-      console.warn('Error loading menu for edit:', err);
-    } finally {
-      setLoadingMenu(false);
-    }
-  };
-
   const handleStartEditOrder = (order) => {
     const { eligible, reason } = checkEligibility(order);
     if (!eligible) {
@@ -459,64 +425,21 @@ const MyOrders = ({
     }
 
     setEditingOrder(order);
-    setEditSelections({
-      breakfast: Array.isArray(order.meals?.breakfast) ? [...order.meals.breakfast] : [],
-      lunch: Array.isArray(order.meals?.lunch) ? [...order.meals.lunch] : [],
-      snacks: Array.isArray(order.meals?.snacks) ? [...order.meals.snacks] : [],
-      dinner: Array.isArray(order.meals?.dinner) ? [...order.meals.dinner] : [],
-    });
-    fetchMenuForDate(order.date);
+    setEditSelections(toMealPreferences(order.rawDoc || {}));
   };
 
-  const handleEditItemToggle = (mealType, itemName) => {
-    setEditSelections(prev => {
-      const items = prev[mealType] || [];
-      const alreadySelected = items.includes(itemName);
-      const updated = alreadySelected
-        ? items.filter(i => i !== itemName)
-        : [...items, itemName];
-      return { ...prev, [mealType]: updated };
-    });
+  const handleEditMealToggle = (mealType) => {
+    setEditSelections(prev => ({
+      ...prev,
+      [mealType]: !prev[mealType],
+    }));
   };
 
-  const getEditAvailableItems = (mealType) => {
-    const rawMenuItems = editingMenu?.[mealType] || [];
-    const rawStaplesItems = staples[mealType] || [];
-    const combined = [
-      ...rawStaplesItems.map(normalizeMenuItem),
-      ...rawMenuItems.map(normalizeMenuItem)
-    ].filter(item => item.name && item.available);
-
-    const currentlySelected = editSelections[mealType] || [];
-    currentlySelected.forEach(name => {
-      if (!combined.some(i => i.name.toLowerCase() === name.toLowerCase())) {
-        combined.push({ name, available: true, quantity: null });
-      }
-    });
-
-    const uniqueItems = [];
-    const seen = new Set();
-    combined.forEach(item => {
-      const k = item.name.toLowerCase();
-      if (!seen.has(k)) {
-        seen.add(k);
-        uniqueItems.push(item);
-      }
-    });
-    return uniqueItems;
-  };
-
-  const getEditTotalSelectedCount = () => {
-    return (
-      (editSelections.breakfast?.length || 0) +
-      (editSelections.lunch?.length || 0) +
-      (editSelections.snacks?.length || 0) +
-      (editSelections.dinner?.length || 0)
-    );
-  };
+  const getEditSelectedCount = () =>
+    MEAL_KEYS.filter(key => editSelections[key] === true).length;
 
   const handleSaveEditedOrder = async () => {
-    if (!editingOrder) return;
+    if (!editingOrder || !currentUser) return;
 
     const { eligible, reason } = checkEligibility(editingOrder);
     if (!eligible) {
@@ -528,63 +451,66 @@ const MyOrders = ({
     try {
       setSavingEdit(true);
       const selectionRef = doc(db, 'mealSelections', editingOrder.date, 'users', currentUser.uid);
-
       const now = new Date();
       const updatedAt = now.toISOString();
 
       const updatedDoc = {
         ...(editingOrder.rawDoc || {}),
-        date: editingOrder.date,
+        employeeId: currentUser.uid,
         userId: currentUser.uid,
-        email: currentUser.email,
+        email: currentUser.email || '',
+        date: editingOrder.date,
         status: 'Confirmed',
-        breakfast: editSelections.breakfast || [],
-        lunch: editSelections.lunch || [],
-        snacks: editSelections.snacks || [],
-        dinner: editSelections.dinner || [],
+        breakfast: editSelections.breakfast === true,
+        lunch: editSelections.lunch === true,
+        snacks: editSelections.snacks === true,
+        dinner: editSelections.dinner === true,
+        timestamp: editingOrder.rawDoc?.timestamp || updatedAt,
         updatedAt,
         modified: true,
       };
 
-      await setDoc(selectionRef, updatedDoc, { merge: true });
-      await cacheDocument(docCacheKey('mealSelections', editingOrder.date, 'users', currentUser.uid), updatedDoc);
+      await setDoc(selectionRef, updatedDoc);
+      await cacheDocument(
+        docCacheKey('mealSelections', editingOrder.date, 'users', currentUser.uid),
+        updatedDoc
+      );
 
-      const totalItems = getEditTotalSelectedCount();
+      const displayMeals = {
+        breakfast: updatedDoc.breakfast ? ['Interested'] : [],
+        lunch: updatedDoc.lunch ? ['Interested'] : [],
+        snacks: updatedDoc.snacks ? ['Interested'] : [],
+        dinner: updatedDoc.dinner ? ['Interested'] : [],
+      };
+      const totalItems = getEditSelectedCount();
 
-      setOrders(prev => prev.map(o => {
-        if (o.date === editingOrder.date) {
-          return {
-            ...o,
-            status: 'Confirmed',
-            meals: {
-              breakfast: updatedDoc.breakfast,
-              lunch: updatedDoc.lunch,
-              snacks: updatedDoc.snacks,
-              dinner: updatedDoc.dinner,
-            },
+      setOrders(prev => prev.map(order => order.date === editingOrder.date
+        ? {
+            ...order,
+            status: totalItems === 0 ? 'empty' : 'Confirmed',
+            meals: displayMeals,
             totalItemsCount: totalItems,
             updatedAt,
             rawDoc: updatedDoc,
-          };
-        }
-        return o;
-      }));
+          }
+        : order
+      ));
 
       setBannerMessage({
         type: 'success',
-        text: `Order for ${formatDate(editingOrder.date)} was successfully updated!`,
+        text: `Meal preferences for ${formatDate(editingOrder.date)} were successfully updated!`,
       });
 
       if (onOrderUpdated) {
-        onOrderUpdated(editingOrder.date, editSelections);
+        onOrderUpdated(editingOrder.date, { ...editSelections });
       }
 
       setEditingOrder(null);
     } catch (err) {
-      console.error('[MyOrders] Error updating order:', err);
+      console.error('[MyOrders] Error updating meal preferences:', err);
       setBannerMessage({
         type: 'error',
-        text: 'Failed to update order. Please try again.',
+        text: 'Failed to update meal preferences. Please try again.',
       });
     } finally {
       setSavingEdit(false);
@@ -712,7 +638,7 @@ const MyOrders = ({
             </h3>
             <p>
               {activeTab === 'upcoming'
-                ? 'Select meals above and click "Save Preferences" to pre-order meals for upcoming days. Cancelled orders appear in the All tab.'
+                ? 'Select your meal preferences above and save them to pre-order for upcoming days. Cancelled orders appear in the All tab.'
                 : activeTab === 'past'
                   ? 'Your previous meal selections will show up here.'
                   : 'Your meal orders (including cancelled ones) will appear here.'}
@@ -861,7 +787,7 @@ const MyOrders = ({
                       <Utensils size={13} style={{ marginRight: '5px', verticalAlign: 'middle' }} />
                       {isEmpty
                         ? 'No meals selected'
-                        : `${order.totalItemsCount} ${order.totalItemsCount === 1 ? 'item selected' : 'items selected'}${isCancelled ? ' (Cancelled)' : ''}`}
+                        : `${order.totalItemsCount} ${order.totalItemsCount === 1 ? 'meal requested' : 'meals requested'}${isCancelled ? ' (Cancelled)' : ''}`}
                     </span>
 
                     {eligible && (
@@ -942,9 +868,9 @@ const MyOrders = ({
         </div>
       )}
 
-      {/* Edit Order Modal */}
+      {/* Edit Meal Preferences Modal */}
       {editingOrder && (
-        <div className="popup-overlay" onClick={() => setEditingOrder(null)}>
+        <div className="popup-overlay" onClick={() => !savingEdit && setEditingOrder(null)}>
           <div className="popup-modal edit-order-modal" onClick={(e) => e.stopPropagation()}>
             <div className="edit-order-header">
               <div className="edit-order-header-title">
@@ -952,9 +878,9 @@ const MyOrders = ({
                   <Pencil size={20} style={{ color: 'var(--accent-primary)' }} />
                 </div>
                 <div>
-                  <h2>Edit Order – {formatDate(editingOrder.date)}</h2>
+                  <h2>Edit Meal Preferences – {formatDate(editingOrder.date)}</h2>
                   <p className="edit-order-subtitle">
-                    Add or remove items before deadline ({formatDeadlineTime()})
+                    Choose which meals you want before the deadline ({formatDeadlineTime()}). Menu items are managed by the admin.
                   </p>
                 </div>
               </div>
@@ -963,80 +889,46 @@ const MyOrders = ({
                 className="edit-order-close-btn"
                 onClick={() => setEditingOrder(null)}
                 aria-label="Close"
+                disabled={savingEdit}
               >
                 <X size={18} />
               </button>
             </div>
 
-            {loadingMenu ? (
-              <div className="edit-order-loading">
-                <div className="orders-spinner"></div>
-                <p>Loading available menu...</p>
-              </div>
-            ) : (
-              <div className="edit-order-meals-container">
-                {['breakfast', 'lunch', 'snacks', 'dinner'].map((mealKey) => {
-                  const availableItems = getEditAvailableItems(mealKey);
-                  const selectedItems = editSelections[mealKey] || [];
-                  const MealIcon = MEAL_ICONS[mealKey] || Utensils;
+            <div className="edit-order-meals-container">
+              {MEAL_KEYS.map((mealKey) => {
+                const MealIcon = MEAL_ICONS[mealKey] || Utensils;
+                const selected = editSelections[mealKey] === true;
 
-                  return (
-                    <div key={mealKey} className="edit-meal-section">
-                      <div className="edit-meal-section-header">
-                        <div className="edit-meal-title">
-                          <MealIcon size={16} className="order-meal-icon" />
-                          <span>{MEAL_LABELS[mealKey]}</span>
-                        </div>
-                        <span className="edit-meal-badge">
-                          {selectedItems.length} selected
-                        </span>
+                return (
+                  <div key={mealKey} className="edit-meal-section">
+                    <div className="edit-meal-section-header">
+                      <div className="edit-meal-title">
+                        <MealIcon size={16} className="order-meal-icon" />
+                        <span>{MEAL_LABELS[mealKey]}</span>
                       </div>
-
-                      {availableItems.length === 0 ? (
-                        <p className="no-items-text">No items configured for this meal</p>
-                      ) : (
-                        <div className="item-chip-row">
-                          {availableItems.map((item) => {
-                            const isSelected = selectedItems.includes(item.name);
-                            const isOutOfStock = item.quantity !== null && item.quantity <= 0;
-
-                            return (
-                              <button
-                                key={item.name}
-                                type="button"
-                                className={`item-chip ${isSelected ? 'selected' : ''}`}
-                                onClick={() => handleEditItemToggle(mealKey, item.name)}
-                                disabled={isOutOfStock}
-                                title={
-                                  isOutOfStock
-                                    ? `${item.name} is out of stock`
-                                    : item.quantity !== null
-                                    ? `${item.quantity} available`
-                                    : item.name
-                                }
-                              >
-                                {isSelected && <Check size={12} />}
-                                <span>{item.name}</span>
-                                {item.quantity !== null && (
-                                  <span style={{ marginLeft: '6px', fontSize: '11px', opacity: 0.75 }}>
-                                    {isOutOfStock ? 'Out of stock' : `${item.quantity} left`}
-                                  </span>
-                                )}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      )}
+                      <span className="edit-meal-badge">
+                        {selected ? 'Interested' : 'Not Interested'}
+                      </span>
                     </div>
-                  );
-                })}
-              </div>
-            )}
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: savingEdit ? 'not-allowed' : 'pointer' }}>
+                      <input
+                        type="checkbox"
+                        checked={selected}
+                        onChange={() => handleEditMealToggle(mealKey)}
+                        disabled={savingEdit}
+                      />
+                      <span>{selected ? 'I want this meal' : 'I do not want this meal'}</span>
+                    </label>
+                  </div>
+                );
+              })}
+            </div>
 
             <div className="edit-order-footer">
               <div className="edit-total-badge">
                 <Utensils size={14} />
-                <span>{getEditTotalSelectedCount()} items selected</span>
+                <span>{getEditSelectedCount()} of 4 meals requested</span>
               </div>
 
               <div className="edit-order-actions">
@@ -1052,7 +944,7 @@ const MyOrders = ({
                   type="button"
                   className="btn-modal-save"
                   onClick={handleSaveEditedOrder}
-                  disabled={savingEdit || loadingMenu}
+                  disabled={savingEdit}
                 >
                   {savingEdit ? 'Saving...' : 'Save Changes'}
                 </button>

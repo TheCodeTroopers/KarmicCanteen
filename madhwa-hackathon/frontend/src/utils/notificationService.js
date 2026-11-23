@@ -1,25 +1,27 @@
+
 // src/utils/notificationService.js
 
 /**
  * Notification Service for Karmic Canteen
- * Handles browser notifications for meal reminders and confirmations
+ * Handles browser notifications for meal reminders and confirmations.
  */
 
 class NotificationService {
   constructor() {
-    this.permission = Notification.permission;
+    this.permission =
+      typeof Notification !== 'undefined' ? Notification.permission : 'default';
     this.reminderTime = { hour: 8, minute: 0 }; // 8:00 AM
   }
 
   /**
-   * Check if browser supports notifications
+   * Check if browser supports notifications.
    */
   isSupported() {
-    return 'Notification' in window;
+    return typeof window !== 'undefined' && 'Notification' in window;
   }
 
   /**
-   * Request notification permission from user
+   * Request notification permission from user.
    */
   async requestPermission() {
     if (!this.isSupported()) {
@@ -27,9 +29,7 @@ class NotificationService {
       return false;
     }
 
-    if (this.permission === 'granted') {
-      return true;
-    }
+    if (this.permission === 'granted') return true;
 
     try {
       const permission = await Notification.requestPermission();
@@ -42,7 +42,7 @@ class NotificationService {
   }
 
   /**
-   * Show a notification
+   * Show a notification.
    */
   showNotification(title, options = {}) {
     if (!this.isSupported() || this.permission !== 'granted') {
@@ -51,20 +51,18 @@ class NotificationService {
     }
 
     const defaultOptions = {
-      icon: '/vite.svg', // You can replace with your app icon
+      icon: '/vite.svg',
       badge: '/vite.svg',
       vibrate: [200, 100, 200],
       requireInteraction: false,
-      ...options
+      ...options,
     };
 
     try {
       const notification = new Notification(title, defaultOptions);
-      
-      // Auto-close after 10 seconds if not interacted with
-      setTimeout(() => {
-        notification.close();
-      }, 10000);
+
+      // Auto-close after 10 seconds.
+      setTimeout(() => notification.close(), 10000);
 
       return notification;
     } catch (error) {
@@ -74,26 +72,26 @@ class NotificationService {
   }
 
   /**
-   * Check if user is working from office
+   * Check if user is working from office.
    */
   isWorkingFromOffice() {
     return true;
   }
 
   /**
-   * Show morning reminder notification (only for office workers)
+   * Show morning reminder notification.
    */
   showMorningReminder(hasMenu = true) {
-    // Only show notifications to office workers
     if (!this.isWorkingFromOffice()) {
       console.log('Notification skipped: User is not working from office');
       return null;
     }
 
     const title = '🍽️ Karmic Canteen Reminder';
+
     const body = hasMenu
       ? "Good morning! Don't forget to select your meals for tomorrow. Deadline is approaching!"
-      : "Good morning! The menu for tomorrow hasn't been published yet. Check back later!";
+      : "Good morning! The menu for tomorrow hasn't been published yet. You can still set your meal preferences.";
 
     return this.showNotification(title, {
       body,
@@ -102,110 +100,118 @@ class NotificationService {
       requireInteraction: true,
       actions: [
         { action: 'view', title: 'View Menu' },
-        { action: 'dismiss', title: 'Dismiss' }
-      ]
+        { action: 'dismiss', title: 'Dismiss' },
+      ],
     });
   }
 
   /**
-   * Show meal selection confirmation notification
+   * Supports current boolean meal preferences
+   * and historical item arrays.
    */
-  showConfirmationNotification(selectedMeals) {
-  const mealTypes = ['breakfast', 'lunch', 'snacks', 'dinner'];
-  
-   // Count individual ITEMS selected (not just meal categories)
-  const itemCount = mealTypes.reduce((sum, type) => {
-    const items = Array.isArray(selectedMeals[type]) ? selectedMeals[type] : [];
-    return sum + items.length;
-    }, 0);
+  showConfirmationNotification(selectedMeals = {}) {
+    const mealTypes = ['breakfast', 'lunch', 'snacks', 'dinner'];
+    const selectedLabels = [];
 
-    // Build a readable summary like "Breakfast: Idli, Tea | Lunch: Rice"
-    const mealSummaries = mealTypes
-    .filter(type => Array.isArray(selectedMeals[type]) && selectedMeals[type].length > 0)
-    .map(type => {
+    mealTypes.forEach((type) => {
+      const value = selectedMeals?.[type];
       const label = type.charAt(0).toUpperCase() + type.slice(1);
-      return `${label}: ${selectedMeals[type].join(', ')}`;
+
+      if (value === true) {
+        selectedLabels.push(label);
+      } else if (Array.isArray(value) && value.length > 0) {
+        selectedLabels.push(
+          `${label} (${value.length} item${value.length === 1 ? '' : 's'})`
+        );
+      }
     });
 
-    const title = '✅ Meal Selection Confirmed';
-    const body = itemCount > 0
-    ? `You've selected ${itemCount} item(s) — ${mealSummaries.join(' | ')}. Enjoy your meal tomorrow!`
-    : 'Your meal preferences have been saved. You have not selected any items.';
+    const title = '✅ Meal Preferences Confirmed';
+
+    const body = selectedLabels.length > 0
+      ? `Your preferences are saved for: ${selectedLabels.join(', ')}.`
+      : 'Your meal preferences have been saved. You have not opted in for any meals.';
+
     return this.showNotification(title, {
       body,
       tag: 'meal-confirmation',
       icon: '/vite.svg',
-      requireInteraction: false
+      requireInteraction: false,
     });
   }
 
   /**
-   * Show deadline warning notification (only for office workers)
+   * Show deadline warning notification.
    */
   showDeadlineWarning(timeRemaining) {
-    // Only show notifications to office workers
     if (!this.isWorkingFromOffice()) {
       console.log('Notification skipped: User is not working from office');
       return null;
     }
 
-    const title = '⏰ Deadline Approaching!';
-    const body = `Only ${timeRemaining} left to select your meals for tomorrow. Don't miss out!`;
-
-    return this.showNotification(title, {
-      body,
+    return this.showNotification('⏰ Deadline Approaching!', {
+      body: `Only ${timeRemaining} left to select your meals for tomorrow. Don't miss out!`,
       tag: 'deadline-warning',
       icon: '/vite.svg',
-      requireInteraction: true
+      requireInteraction: true,
     });
   }
 
   /**
-   * Schedule morning reminder
-   * Returns timeout ID that can be cleared
+   * Schedule morning reminder.
+   * Returns timeout ID that can be cleared.
    */
   scheduleMorningReminder(callback) {
     const now = new Date();
     const scheduledTime = new Date();
-    scheduledTime.setHours(this.reminderTime.hour, this.reminderTime.minute, 0, 0);
 
-    // If time has passed today, schedule for tomorrow
+    scheduledTime.setHours(
+      this.reminderTime.hour,
+      this.reminderTime.minute,
+      0,
+      0
+    );
+
+    // If time has passed today, schedule for tomorrow.
     if (now > scheduledTime) {
       scheduledTime.setDate(scheduledTime.getDate() + 1);
     }
 
     const timeUntilReminder = scheduledTime - now;
 
-    console.log(`Morning reminder scheduled for: ${scheduledTime.toLocaleString()}`);
+    console.log(
+      `Morning reminder scheduled for: ${scheduledTime.toLocaleString()}`
+    );
 
-    const timeoutId = setTimeout(() => {
+    return setTimeout(() => {
       callback();
-      // Reschedule for next day
       this.scheduleMorningReminder(callback);
     }, timeUntilReminder);
-
-    return timeoutId;
   }
 
   /**
-   * Check if it's time for morning reminder (for testing)
+   * Check if it's time for morning reminder.
    */
   shouldShowMorningReminder() {
     const now = new Date();
-    const currentHour = now.getHours();
-    const currentMinute = now.getMinutes();
 
-    // Show reminder at 8:00 AM (within 1 minute window)
-    return currentHour === this.reminderTime.hour && currentMinute === this.reminderTime.minute;
+    return now.getHours() === this.reminderTime.hour
+      && now.getMinutes() === this.reminderTime.minute;
   }
 
   /**
-   * Calculate time until next reminder
+   * Calculate time until next reminder.
    */
   getTimeUntilNextReminder() {
     const now = new Date();
     const scheduledTime = new Date();
-    scheduledTime.setHours(this.reminderTime.hour, this.reminderTime.minute, 0, 0);
+
+    scheduledTime.setHours(
+      this.reminderTime.hour,
+      this.reminderTime.minute,
+      0,
+      0
+    );
 
     if (now > scheduledTime) {
       scheduledTime.setDate(scheduledTime.getDate() + 1);
@@ -213,38 +219,44 @@ class NotificationService {
 
     const diff = scheduledTime - now;
     const hours = Math.floor(diff / (1000 * 60 * 60));
-    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+    const minutes = Math.floor(
+      (diff % (1000 * 60 * 60)) / (1000 * 60)
+    );
 
     return { hours, minutes, totalMs: diff };
   }
 
   /**
-   * Save notification preferences to localStorage
+   * Save notification preferences to localStorage.
    */
   savePreferences(preferences) {
-    localStorage.setItem('notificationPreferences', JSON.stringify(preferences));
+    localStorage.setItem(
+      'notificationPreferences',
+      JSON.stringify(preferences)
+    );
   }
 
   /**
-   * Load notification preferences from localStorage
+   * Load notification preferences from localStorage.
    */
   loadPreferences() {
     const saved = localStorage.getItem('notificationPreferences');
+
     return saved ? JSON.parse(saved) : {
       morningReminder: true,
       confirmationNotification: true,
-      deadlineWarning: true
+      deadlineWarning: true,
     };
   }
 
   /**
-   * Clear all scheduled notifications
+   * Clear all scheduled notifications.
    */
   clearScheduledNotifications(timeoutIds = []) {
-    timeoutIds.forEach(id => clearTimeout(id));
+    timeoutIds.forEach((id) => clearTimeout(id));
   }
 }
 
-// Export singleton instance
+// Export singleton instance.
 export const notificationService = new NotificationService();
 export default notificationService;
