@@ -5,7 +5,15 @@ import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '../../firebase/config';
 import { useAuth } from '../../context/AuthContext';
 import { cacheDocument, docCacheKey } from '../../utils/indexedDbCache';
-import { getLocalDateString } from '../../utils/dateUtils';
+import { getLocalDateString, isSundayDate } from '../../utils/dateUtils';
+import {
+  MEAL_KEYS,
+  createEmptyMealItemsMap,
+  normalizeMealItemsForSelection,
+  toggleMealItemHighlight,
+  confirmCategorySelection,
+  buildBookingPayload
+} from '../../utils/mealSelectionUtils';
 import {
   X,
   Calendar,
@@ -52,38 +60,41 @@ const MonthlyDateDetailPanel = ({
   const { currentUser } = useAuth();
   const todayStr = getLocalDateString(new Date());
   const isPastDate = Boolean(dateStr && dateStr < todayStr);
+  const isSunday = Boolean(dateStr && isSundayDate(dateStr));
 
-  // Form selections state for the 4 meals
-  const [selections, setSelections] = useState({
-    breakfast: false,
-    lunch: false,
-    snacks: false,
-    dinner: false
-  });
+  // Two-step item selection state per meal category:
+  // Step 1: highlightedItems (chips clicked by employee)
+  // Step 2: confirmedItems (locked in when employee clicks category "Select" button)
+  const [highlightedItems, setHighlightedItems] = useState(createEmptyMealItemsMap);
+  const [confirmedItems, setConfirmedItems] = useState(createEmptyMealItemsMap);
 
   const [saving, setSaving] = useState(false);
   const [cancelling, setCancelling] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
 
-  // Sync initial selections with active booking data (supports booleans & legacy arrays)
+  // Sync initial item selections with active booking data
   useEffect(() => {
     if (bookingData && bookingData.status !== 'cancelled') {
       const raw = bookingData.raw || {};
-      const mealsList = bookingData.meals || [];
-      setSelections({
-        breakfast: raw.breakfast === true || (Array.isArray(raw.breakfast) && raw.breakfast.length > 0) || mealsList.includes('breakfast'),
-        lunch: raw.lunch === true || (Array.isArray(raw.lunch) && raw.lunch.length > 0) || mealsList.includes('lunch'),
-        snacks: raw.snacks === true || (Array.isArray(raw.snacks) && raw.snacks.length > 0) || mealsList.includes('snacks'),
-        dinner: raw.dinner === true || (Array.isArray(raw.dinner) && raw.dinner.length > 0) || mealsList.includes('dinner')
+      const savedSelectedItems = raw.selectedItems || {};
+      const next = createEmptyMealItemsMap();
+
+      MEAL_KEYS.forEach((key) => {
+        if (Array.isArray(savedSelectedItems[key])) {
+          next[key] = savedSelectedItems[key].filter(Boolean);
+        } else if (Array.isArray(raw[key])) {
+          next[key] = raw[key].filter(Boolean);
+        } else {
+          next[key] = [];
+        }
       });
+
+      setHighlightedItems(next);
+      setConfirmedItems(next);
     } else {
-      setSelections({
-        breakfast: false,
-        lunch: false,
-        snacks: false,
-        dinner: false
-      });
+      setHighlightedItems(createEmptyMealItemsMap());
+      setConfirmedItems(createEmptyMealItemsMap());
     }
     setMessage({ type: '', text: '' });
     setShowCancelConfirm(false);
@@ -130,6 +141,9 @@ const MonthlyDateDetailPanel = ({
   // Deadline calculation
   const deadlineInfo = useMemo(() => {
     if (!dateStr) return { passed: false, text: '' };
+    if (isSunday) {
+      return { passed: true, text: 'Holiday – No Meals (Sunday).' };
+    }
 
     const h = parseInt(deadlineHour, 10);
     const m = parseInt(deadlineMinute, 10);
@@ -165,30 +179,32 @@ const MonthlyDateDetailPanel = ({
 
     // Future dates
     return { passed: false, text: `Booking closes 1 day prior at ${timeStr}.` };
-  }, [dateStr, todayStr, deadlineHour, deadlineMinute]);
+  }, [dateStr, todayStr, deadlineHour, deadlineMinute, isSunday]);
 
-  // Extract published items for each meal
+  // Extract published items for each meal (preserving available flag so unavailable items are non-selectable)
   const publishedMealItems = useMemo(() => {
     const result = {};
     MEAL_CONFIG.forEach(({ key }) => {
-      if (!menuData || !menuData[key]) {
+      if (isSunday || !menuData || !menuData[key]) {
         result[key] = [];
         return;
       }
-      const raw = menuData[key];
-      if (Array.isArray(raw)) {
-        result[key] = raw.map(item => (typeof item === 'string' ? item : item.name)).filter(Boolean);
-      } else if (typeof raw === 'object') {
-        result[key] = Object.values(raw).map(item => (typeof item === 'string' ? item : item.name)).filter(Boolean);
-      } else {
-        result[key] = [];
-      }
+      result[key] = normalizeMealItemsForSelection(menuData[key]);
     });
     return result;
-  }, [menuData]);
+  }, [menuData, isSunday]);
 
   // Overall employee booking status
   const bookingStatus = useMemo(() => {
+    if (isSunday) {
+      return {
+        key: 'holiday',
+        label: 'Holiday – No Meals',
+        className: 'status-badge-cancelled',
+        icon: Ban,
+        description: 'Sunday is a permanent weekly holiday. Meal selection and booking are disabled.'
+      };
+    }
     if (bookingData?.status === 'cancelled') {
       return {
         key: 'cancelled',
@@ -223,7 +239,7 @@ const MonthlyDateDetailPanel = ({
       icon: AlertCircle,
       description: 'No meals booked yet. Selection is currently open.'
     };
-  }, [bookingData, deadlineInfo, isPastDate]);
+  }, [bookingData, deadlineInfo, isPastDate, isSunday]);
 
   // Cancellation eligibility check
   const cancellationEligible = useMemo(() => {
@@ -241,19 +257,28 @@ const MonthlyDateDetailPanel = ({
 
   // Has changes compared to existing booking
   const hasFormChanges = useMemo(() => {
-    if (isPastDate) return false;
+    if (isPastDate || isSunday) return false;
     const raw = bookingData?.raw || {};
-    const existing = {
-      breakfast: Boolean(raw.breakfast),
-      lunch: Boolean(raw.lunch),
-      snacks: Boolean(raw.snacks),
-      dinner: Boolean(raw.dinner)
-    };
-    return MEAL_CONFIG.some(({ key }) => selections[key] !== existing[key]);
-  }, [selections, bookingData, isPastDate]);
+    const savedSelectedItems = raw.selectedItems || {};
 
-  // Toggle meal selection
-  const handleToggleMeal = (mealKey) => {
+    return MEAL_KEYS.some((key) => {
+      const prevItems = Array.isArray(savedSelectedItems[key])
+        ? savedSelectedItems[key].filter(Boolean)
+        : Array.isArray(raw[key])
+          ? raw[key].filter(Boolean)
+          : [];
+      const currItems = confirmedItems[key] || [];
+      if (prevItems.length !== currItems.length) return true;
+      return prevItems.some((val, idx) => val !== currItems[idx]);
+    });
+  }, [confirmedItems, bookingData, isPastDate, isSunday]);
+
+  // Step 1: Toggle individual food item highlight
+  const handleToggleItemHighlight = (mealKey, item) => {
+    if (isSunday) {
+      showMessage('error', 'Sunday is a weekly holiday — meal selection is disabled.');
+      return;
+    }
     if (isPastDate) {
       showMessage('error', 'Cannot modify selection: This date has already occurred.');
       return;
@@ -262,16 +287,46 @@ const MonthlyDateDetailPanel = ({
       showMessage('error', 'Cannot modify selection: Deadline has passed.');
       return;
     }
-    // Prevent booking unpublished meals
-    if (publishedMealItems[mealKey].length === 0) {
-      showMessage('error', `Cannot select ${mealKey}: Menu has not been published yet.`);
+    if (!item.available) {
+      showMessage('error', `"${item.name}" is currently unavailable.`);
       return;
     }
 
-    setSelections(prev => ({
-      ...prev,
-      [mealKey]: !prev[mealKey]
-    }));
+    setHighlightedItems((prev) =>
+      toggleMealItemHighlight(prev, mealKey, item.name, item.available)
+    );
+  };
+
+  // Step 2: Confirm only the individually highlighted items for that category
+  const handleConfirmCategory = (mealKey) => {
+    if (isSunday) {
+      showMessage('error', 'Sunday is a weekly holiday — meal selection is disabled.');
+      return;
+    }
+    if (isPastDate) {
+      showMessage('error', 'Cannot modify selection: This date has already occurred.');
+      return;
+    }
+    if (deadlineInfo.passed) {
+      showMessage('error', 'Cannot modify selection: Deadline has passed.');
+      return;
+    }
+
+    const availableItems = publishedMealItems[mealKey].filter((i) => i.available);
+    if (availableItems.length === 0) {
+      showMessage('error', `Cannot select ${mealKey}: No available menu items.`);
+      return;
+    }
+
+    const highlighted = highlightedItems[mealKey] || [];
+    const alreadyConfirmed = confirmedItems[mealKey] || [];
+
+    if (highlighted.length === 0 && alreadyConfirmed.length === 0) {
+      showMessage('error', `Please click at least one ${mealKey} item first, then click Select.`);
+      return;
+    }
+
+    setConfirmedItems((prev) => confirmCategorySelection(highlightedItems, prev, mealKey));
   };
 
   const showMessage = (type, text) => {
@@ -279,8 +334,12 @@ const MonthlyDateDetailPanel = ({
     setTimeout(() => setMessage({ type: '', text: '' }), 5000);
   };
 
-  // Save / Update booking
+  // Save / Update booking using ONLY confirmedItems
   const handleSaveBooking = async () => {
+    if (isSunday) {
+      showMessage('error', 'Sunday is a weekly holiday — meal booking is disabled.');
+      return;
+    }
     if (isPastDate) {
       showMessage('error', 'Cannot book meals for past dates.');
       return;
@@ -294,37 +353,26 @@ const MonthlyDateDetailPanel = ({
       return;
     }
 
-    const selectedCount = Object.values(selections).filter(Boolean).length;
-    if (selectedCount === 0) {
-      showMessage('error', 'Please select at least one meal.');
+    const totalConfirmedCount = MEAL_KEYS.reduce(
+      (sum, key) => sum + (confirmedItems[key]?.length || 0),
+      0
+    );
+    if (totalConfirmedCount === 0) {
+      showMessage('error', 'Please select items and click Select on at least one meal category.');
       return;
-    }
-
-    // Ensure no unpublished meals are selected
-    for (const { key, label } of MEAL_CONFIG) {
-      if (selections[key] && publishedMealItems[key].length === 0) {
-        showMessage('error', `Cannot book ${label}: Menu has not been published yet.`);
-        return;
-      }
     }
 
     try {
       setSaving(true);
       const selectionRef = doc(db, 'mealSelections', dateStr, 'users', currentUser.uid);
 
-      const payload = {
-        employeeId: currentUser.uid,
-        userId: currentUser.uid,
+      const payload = buildBookingPayload({
+        uid: currentUser.uid,
         email: currentUser.email || '',
-        date: dateStr,
-        breakfast: Boolean(selections.breakfast),
-        lunch: Boolean(selections.lunch),
-        snacks: Boolean(selections.snacks),
-        dinner: Boolean(selections.dinner),
-        status: 'Confirmed',
-        timestamp: new Date().toISOString(),
-        modified: Boolean(bookingData && bookingData.count > 0)
-      };
+        dateStr,
+        confirmedItems,
+        isModified: Boolean(bookingData && bookingData.count > 0)
+      });
 
       await setDoc(selectionRef, payload);
       await cacheDocument(
@@ -395,12 +443,8 @@ const MonthlyDateDetailPanel = ({
         cancelledPayload
       );
 
-      setSelections({
-        breakfast: false,
-        lunch: false,
-        snacks: false,
-        dinner: false
-      });
+      setHighlightedItems(createEmptyMealItemsMap());
+      setConfirmedItems(createEmptyMealItemsMap());
       setShowCancelConfirm(false);
       showMessage('success', 'Booking cancelled successfully.');
 
@@ -517,15 +561,21 @@ const MonthlyDateDetailPanel = ({
           <div className="meal-categories-list">
             {MEAL_CONFIG.map(({ key, label, icon: MealIcon, timing }) => {
               const items = publishedMealItems[key];
-              const isPublished = items.length > 0;
-              const isSelected = selections[key] === true;
+              const availableItems = items.filter((i) => i.available);
+              const isPublished = availableItems.length > 0;
+              const highlighted = highlightedItems[key] || [];
+              const confirmed = confirmedItems[key] || [];
+              const isConfirmed = confirmed.length > 0;
+              const hasPendingDiff =
+                highlighted.length !== confirmed.length ||
+                highlighted.some((val, idx) => val !== confirmed[idx]);
               const isPreordered = bookingData?.status !== 'cancelled' && 
                 (bookingData?.raw?.[key] === true || (Array.isArray(bookingData?.raw?.[key]) && bookingData.raw[key].length > 0) || (bookingData?.meals || []).includes(key));
 
               return (
                 <div 
                   key={key} 
-                  className={`meal-row-card ${isSelected ? 'is-selected' : ''} ${!isPublished ? 'is-unpublished' : ''} ${isPastDate ? 'is-past-card' : ''}`}
+                  className={`meal-row-card ${isConfirmed ? 'is-selected' : ''} ${!isPublished ? 'is-unpublished' : ''} ${isPastDate ? 'is-past-card' : ''}`}
                 >
                   <div className="meal-row-header">
                     <div className="meal-title-group">
@@ -540,7 +590,7 @@ const MonthlyDateDetailPanel = ({
                       </div>
                     </div>
 
-                    {/* Booking Checkbox / Status */}
+                    {/* Step 2: Category Select / Confirm button */}
                     <div className="meal-selection-control">
                       {isPastDate ? (
                         isPreordered ? (
@@ -552,21 +602,26 @@ const MonthlyDateDetailPanel = ({
                             Not Booked
                           </span>
                         )
+                      ) : isSunday ? (
+                        <span className="unpublished-badge">
+                          Holiday – No Meals
+                        </span>
                       ) : isPublished ? (
-                        <label className={`meal-checkbox-label ${deadlineInfo.passed ? 'disabled' : ''}`}>
-                          <input 
-                            type="checkbox"
-                            checked={isSelected}
-                            disabled={deadlineInfo.passed || saving || cancelling}
-                            onChange={() => handleToggleMeal(key)}
-                          />
-                          <span className="checkbox-custom">
-                            {isSelected && <Check size={12} />}
+                        <button
+                          type="button"
+                          className={`category-select-btn ${isConfirmed && !hasPendingDiff ? 'is-confirmed' : ''}`}
+                          disabled={isSunday || deadlineInfo.passed || saving || cancelling}
+                          onClick={() => handleConfirmCategory(key)}
+                        >
+                          <Check size={13} />
+                          <span>
+                            {isConfirmed && !hasPendingDiff
+                              ? `Confirmed (${confirmed.length})`
+                              : highlighted.length === 0 && isConfirmed
+                                ? 'Clear'
+                                : 'Select'}
                           </span>
-                          <span className="checkbox-text">
-                            {isSelected ? 'Selected' : 'Select'}
-                          </span>
-                        </label>
+                        </button>
                       ) : (
                         <span className="unpublished-badge">
                           Menu Not Published
@@ -575,15 +630,42 @@ const MonthlyDateDetailPanel = ({
                     </div>
                   </div>
 
-                  {/* Published Menu Items List */}
+                  {/* Step 1: Clickable Food Item Chips */}
                   <div className="meal-items-content">
-                    {isPublished ? (
+                    {isSunday ? (
+                      <p className="no-menu-text">
+                        <Ban size={13} />
+                        <span>Holiday – No Meals on Sunday.</span>
+                      </p>
+                    ) : items.length > 0 ? (
                       <div className="menu-items-pill-wrap">
-                        {items.map((item, idx) => (
-                          <span key={idx} className="menu-item-chip">
-                            {item}
-                          </span>
-                        ))}
+                        {items.map((item, idx) => {
+                          const isHighlighted = highlighted.includes(item.name);
+                          const isLockedIn = confirmed.includes(item.name);
+                          const chipDisabled =
+                            !item.available || isPastDate || isSunday || deadlineInfo.passed || saving || cancelling;
+
+                          return (
+                            <button
+                              key={idx}
+                              type="button"
+                              disabled={chipDisabled}
+                              onClick={() => handleToggleItemHighlight(key, item)}
+                              className={`menu-item-chip ${isHighlighted ? 'is-highlighted' : ''} ${!item.available ? 'is-unavailable' : ''} ${isLockedIn ? 'is-confirmed-item' : ''}`}
+                              aria-pressed={isHighlighted}
+                              title={
+                                !item.available
+                                  ? `${item.name} (Unavailable)`
+                                  : isHighlighted
+                                    ? `Deselect ${item.name}`
+                                    : `Select ${item.name}`
+                              }
+                            >
+                              <span>{item.name}</span>
+                              {!item.available && <span className="chip-unavailable-tag">Unavailable</span>}
+                            </button>
+                          );
+                        })}
                       </div>
                     ) : (
                       <p className="no-menu-text">
@@ -592,6 +674,20 @@ const MonthlyDateDetailPanel = ({
                       </p>
                     )}
                   </div>
+
+                  {!isPastDate && !isSunday && isPublished && (
+                    <div className="category-selection-status">
+                      {isConfirmed && !hasPendingDiff ? (
+                        <span className="confirmed-items-summary">
+                          <CheckCircle2 size={12} /> Confirmed: {confirmed.join(', ')}
+                        </span>
+                      ) : highlighted.length > 0 ? (
+                        <span className="pending-items-hint">
+                          <Info size={12} /> {highlighted.length} highlighted — click Select to confirm
+                        </span>
+                      ) : null}
+                    </div>
+                  )}
 
                   {isPreordered && !isPastDate && (
                     <div className="preorder-indicator">
@@ -602,6 +698,30 @@ const MonthlyDateDetailPanel = ({
               );
             })}
           </div>
+
+          {/* Booking Summary of exact confirmed items */}
+          {!isPastDate && !isSunday && (
+            <div className="booking-items-summary-card">
+              <h4>Booking Summary</h4>
+              {MEAL_CONFIG.some(({ key }) => (confirmedItems[key] || []).length > 0) ? (
+                <ul className="booking-summary-list">
+                  {MEAL_CONFIG.map(({ key, label }) => {
+                    const list = confirmedItems[key] || [];
+                    if (list.length === 0) return null;
+                    return (
+                      <li key={key}>
+                        <strong>{label}:</strong> {list.join(', ')}
+                      </li>
+                    );
+                  })}
+                </ul>
+              ) : (
+                <p className="booking-summary-empty">
+                  Select individual items above and click Select on each meal category to add them to your booking.
+                </p>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Panel Footer Actions */}
@@ -630,6 +750,11 @@ const MonthlyDateDetailPanel = ({
                   Keep Booking
                 </button>
               </div>
+            </div>
+          ) : isSunday ? (
+            <div className="past-footer-notice">
+              <Ban size={16} />
+              <span>Holiday – No Meals • Meal booking is disabled on Sundays.</span>
             </div>
           ) : isPastDate ? (
             <div className="past-footer-notice">

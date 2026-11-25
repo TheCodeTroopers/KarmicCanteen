@@ -96,6 +96,13 @@ service cloud.firestore {
             || data.modified is bool);
     }
 
+    // Sunday is a permanent weekly holiday.
+    function isNotSunday(date) {
+      let parts = date.split('-');
+      return date.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+        && timestamp.date(int(parts[0]), int(parts[1]), int(parts[2])).dayOfWeek() != 7;
+    }
+
 
     // =========================================================
     // USERS
@@ -190,6 +197,7 @@ service cloud.firestore {
 
       allow create: if isSignedIn()
         && request.auth.uid == userId
+        && isNotSunday(date)
         && validMealSelectionMetadata(userId, date)
         && validNewMealPreferences(request.resource.data);
 
@@ -198,6 +206,7 @@ service cloud.firestore {
 
       allow update: if isSignedIn()
         && request.auth.uid == userId
+        && isNotSunday(date)
         && validMealSelectionMetadata(userId, date)
         && validUpdatedMealPreferences();
 

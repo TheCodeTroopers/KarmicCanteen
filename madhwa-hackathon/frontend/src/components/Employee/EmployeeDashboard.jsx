@@ -4,7 +4,7 @@ import { doc, setDoc, onSnapshot } from 'firebase/firestore';
 import { db } from '../../firebase/config';
 import { getDocWithCache, cacheDocument, docCacheKey } from '../../utils/indexedDbCache';
 import { useAuth } from '../../context/AuthContext';
-import { getLocalDateString } from '../../utils/dateUtils';
+import { getLocalDateString, isSundayDate, resolveDefaultMenuForDate } from '../../utils/dateUtils';
 import {
   Clock, Bell, Calendar, Coffee, Soup, Cookie, ChefHat,
   Info, CheckCircle2, AlertTriangle, Utensils, Check, ClipboardCheck, ClipboardList
@@ -41,6 +41,7 @@ const EmployeeDashboard = () => {
   return getLocalDateString(tomorrow);
 });
   const menuRef = useRef(null);
+  const [defaultMenuDoc, setDefaultMenuDoc] = useState(null);
   const [staples, setStaples] = useState({
     breakfast: [],
     lunch: [],
@@ -250,41 +251,48 @@ const EmployeeDashboard = () => {
         if (fromCache) setOffline(true);
       }
 
-      if (exists) {
-        setStaples({
-          breakfast: data.breakfast || [],
-          lunch: data.lunch || [],
-          snacks: data.snacks || [],
-          dinner: data.dinner || [],
-        });
+      if (exists && data) {
+        setDefaultMenuDoc(data);
       }
     } catch (error) {
       console.error('Error loading default menu:', error);
     }
   };
 
-  // Normalize menu/staple items while preserving quantity and availability.
+  // Resolve weekday-specific default menu whenever defaultMenuDoc or targetDate changes
+  useEffect(() => {
+    const resolved = resolveDefaultMenuForDate(defaultMenuDoc, targetDate);
+    setStaples(
+      resolved || {
+        breakfast: [],
+        lunch: [],
+        snacks: [],
+        dinner: [],
+      }
+    );
+  }, [defaultMenuDoc, targetDate]);
+
+  // Normalize menu/staple items while preserving availability (ignores legacy quantity).
   const normalizeMenuItem = (item) => {
-    if (typeof item === 'string') return { name: item.trim(), available: true, quantity: null };
+    if (typeof item === 'string') return { name: item.trim(), available: true };
     if (item && typeof item === 'object') {
       const name = String(item.name || '').trim();
-      let quantity = null;
-      if (item.quantity !== null && item.quantity !== undefined && item.quantity !== '') {
-        const parsed = Number(item.quantity);
-        quantity = Number.isFinite(parsed) ? Math.max(0, parsed) : null;
-      }
-      return { name, available: item.available !== false, quantity };
+      return { name, available: item.available !== false };
     }
-    return { name: String(item || '').trim(), available: true, quantity: null };
+    return { name: String(item || '').trim(), available: true };
   };
 
-  const getAvailableItems = (mealType) => {
-    const rawMenuItems = [
-      ...(staples[mealType] || []),
-      ...(menu?.[mealType] || [])
-    ];
+  const isTargetSunday = isSundayDate(targetDate);
 
-    const combined = rawMenuItems
+  const getAvailableItems = (mealType) => {
+    if (isTargetSunday) return [];
+
+    // Date-specific menu takes priority over the recurring weekday default menu.
+    const sourceItems = menu
+      ? (menu[mealType] || [])
+      : (staples[mealType] || []);
+
+    const combined = sourceItems
       .map(normalizeMenuItem)
       .filter(item => item.name && item.available);
 
@@ -416,6 +424,12 @@ const EmployeeDashboard = () => {
 
 
   const handleSubmit = async () => {
+    const tomorrow = getTomorrowDate();
+    if (isSundayDate(tomorrow)) {
+      showMessage('error', 'Sunday is a weekly holiday — meal booking is disabled.');
+      return;
+    }
+
     if (deadlinePassed) {
       showMessage(
         'error',
@@ -431,8 +445,6 @@ const EmployeeDashboard = () => {
 
     try {
       setSaving(true);
-
-      const tomorrow = getTomorrowDate();
 
       const selectionRef = doc(
         db,
@@ -496,6 +508,11 @@ const EmployeeDashboard = () => {
   };
 
   const handleMealToggle = (mealType) => {
+    if (isTargetSunday) {
+      showMessage('error', 'Sunday is a weekly holiday — meal booking is disabled.');
+      return;
+    }
+
     if (deadlinePassed) {
       showMessage(
         'error',
@@ -709,7 +726,17 @@ const EmployeeDashboard = () => {
       ) : (
         <>
 
-      {!menu && (
+      {isTargetSunday ? (
+        <div className="no-menu-card">
+          <div className="empty-state">
+            <span className="empty-icon">
+              <AlertTriangle size={40} style={{ color: '#dc2626' }} />
+            </span>
+            <h3>Holiday – No Meals</h3>
+            <p>Sunday is a permanent weekly holiday. No meals are served or bookable.</p>
+          </div>
+        </div>
+      ) : !menu && !resolveDefaultMenuForDate(defaultMenuDoc, targetDate) && (
         <div className="no-menu-card">
           <div className="empty-state">
             <span className="empty-icon">
@@ -779,7 +806,7 @@ const EmployeeDashboard = () => {
                     type="checkbox"
                     checked={isInterested}
                     onChange={() => handleMealToggle(key)}
-                    disabled={deadlinePassed || saving || offline}
+                    disabled={isTargetSunday || deadlinePassed || saving || offline}
                     style={{
                       width: '20px',
                       height: '20px',
@@ -836,13 +863,15 @@ const EmployeeDashboard = () => {
           <button
             className="btn btn-primary btn-full save-btn"
             onClick={handleSubmit}
-            disabled={deadlinePassed || saving || !hasChanges() || offline}
+            disabled={isTargetSunday || deadlinePassed || saving || !hasChanges() || offline}
           >
-            {saving
-              ? 'Saving...'
-              : hasChanges()
-                ? 'Save Meal Preferences'
-                : 'No Changes'}
+            {isTargetSunday
+              ? 'Holiday – No Meals'
+              : saving
+                ? 'Saving...'
+                : hasChanges()
+                  ? 'Save Meal Preferences'
+                  : 'No Changes'}
           </button>
 
           <p

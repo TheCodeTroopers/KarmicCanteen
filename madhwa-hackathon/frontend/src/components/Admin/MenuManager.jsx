@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { doc, setDoc, getDoc, collection, getDocs, deleteDoc, writeBatch } from 'firebase/firestore';
 import { db } from '../../firebase/config';
-import { getLocalDateString } from '../../utils/dateUtils';
+import { getLocalDateString, parseLocalDate, isSundayDate, resolveDefaultMenuForDate, WEEKDAY_LABELS, getWeekdayKey } from '../../utils/dateUtils';
 import { Calendar, ClipboardList, Coffee, Soup, Cookie, ChefHat, History, CheckCircle2, AlertTriangle, Info, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import './MenuManager.css';
 
@@ -45,14 +45,27 @@ const MenuManager = () => {
     try {
       const menusRef = collection(db, 'menus');
       const snapshot = await getDocs(menusRef);
-      const menus = snapshot.docs.map(doc => ({
-        date: doc.id,
-        ...doc.data()
-      }));
+      const menus = snapshot.docs
+        .filter(docSnap => docSnap.id !== 'default')
+        .map(docSnap => ({
+          date: docSnap.id,
+          ...docSnap.data()
+        }));
       setExistingMenus(menus.sort((a, b) => b.date.localeCompare(a.date)));
     } catch (error) {
       console.error('Error fetching menus:', error);
     }
+  };
+
+  const fetchDefaultMenuDoc = async () => {
+    let snap = await getDoc(doc(db, 'menus', 'default'));
+    if (!snap.exists()) {
+      snap = await getDoc(doc(db, 'defaultMenu', 'config'));
+    }
+    if (!snap.exists()) {
+      snap = await getDoc(doc(db, 'dailyStaples', 'config'));
+    }
+    return snap.exists() ? snap.data() : null;
   };
 
   const loadMenuForDate = async (date) => {
@@ -70,15 +83,39 @@ const MenuManager = () => {
           dinner: (data.dinner || []).map(normalizeMenuItem)
         });
         showMessage('info', `Loaded existing menu for ${formatDate(date)}`);
-      } else {
-        // Clear menu items for new date
+      } else if (isSundayDate(date)) {
         setMenuItems({
           breakfast: [],
           lunch: [],
           snacks: [],
           dinner: []
         });
-        showMessage('info', `Creating new menu for ${formatDate(date)}`);
+        showMessage('error', 'Sunday is a weekly holiday (Holiday – No Meals).');
+      } else {
+        const defaultData = await fetchDefaultMenuDoc();
+        const resolved = defaultData ? resolveDefaultMenuForDate(defaultData, date) : null;
+        if (resolved) {
+          setMenuItems({
+            breakfast: (resolved.breakfast || []).map(normalizeMenuItem),
+            lunch: (resolved.lunch || []).map(normalizeMenuItem),
+            snacks: (resolved.snacks || []).map(normalizeMenuItem),
+            dinner: (resolved.dinner || []).map(normalizeMenuItem)
+          });
+          const dayKey = getWeekdayKey(date);
+          const dayLabel = dayKey ? WEEKDAY_LABELS[dayKey] : 'Default';
+          showMessage(
+            'info',
+            `Initialized ${formatDate(date)} from ${dayLabel} default menu. Edit and save to create a date-specific menu.`
+          );
+        } else {
+          setMenuItems({
+            breakfast: [],
+            lunch: [],
+            snacks: [],
+            dinner: []
+          });
+          showMessage('info', `Creating new menu for ${formatDate(date)}`);
+        }
       }
     } catch (error) {
       console.error('Error loading menu:', error);
@@ -89,7 +126,7 @@ const MenuManager = () => {
   };
 
   const formatDate = (dateStr) => {
-    const date = new Date(dateStr);
+    const date = parseLocalDate(dateStr) || new Date(dateStr);
     return date.toLocaleDateString('en-US', {
       weekday: 'long',
       month: 'short',
@@ -99,20 +136,18 @@ const MenuManager = () => {
   };
 
   const normalizeMenuItem = (item) => {
-    // Existing menus may contain strings
+    // Existing menus may contain strings or legacy quantity fields
     if (typeof item === 'string') {
       return {
         name: item,
-        available: true,
-        quantity: 0
+        available: true
       };
     }
 
-    // New menu format
+    // Standard menu item format
     return {
       name: item.name || '',
-      available: item.available !== false,
-      quantity: Number(item.quantity) || 0
+      available: item.available !== false
     };
   };
 
@@ -140,8 +175,7 @@ const MenuManager = () => {
         ...prev[mealType],
         {
           name: item,
-          available: true,
-          quantity: 0
+          available: true
         }
       ]
     }));
@@ -173,60 +207,21 @@ const MenuManager = () => {
     }));
   };
 
-  const handleQuantityChange = (mealType, index, value) => {
-    const quantity = Math.max(0, parseInt(value, 10) || 0);
-
-    setMenuItems(prev => ({
-      ...prev,
-      [mealType]: prev[mealType].map((item, i) =>
-        i === index
-          ? {
-              ...item,
-              quantity
-            }
-          : item
-      )
-    }));
-  };
-
-  const normalizeStapleForMenuCheck = (item) => {
-    if (typeof item === 'string') {
-      return {
-        name: item,
-        available: true,
-        quantity: null
-      };
-    }
-
-    return {
-      name: item?.name || '',
-      available: item?.available !== false,
-      quantity:
-        item?.quantity === null ||
-        item?.quantity === undefined ||
-        item?.quantity === ''
-          ? null
-          : Math.max(0, Number(item.quantity))
-    };
-  };
-
   const normalizeName = (name) => (name || '').trim().toLowerCase();
 
   const itemsAreEqual = (a, b) => (
     normalizeName(a?.name) === normalizeName(b?.name) &&
-    a?.available === b?.available &&
-    (a?.quantity ?? null) === (b?.quantity ?? null)
+    a?.available === b?.available
   );
-
-  const removeItemByName = (items, name) =>
-    items.filter(item => normalizeName(item?.name) !== normalizeName(name));
-
-  const findItemByName = (items, name) =>
-    items.find(item => normalizeName(item?.name) === normalizeName(name));
 
   const handleSaveMenu = async () => {
     if (!selectedDate) {
       showMessage('error', 'Please select a date');
+      return;
+    }
+
+    if (isSundayDate(selectedDate)) {
+      showMessage('error', 'Sunday is a weekly holiday (Holiday – No Meals).');
       return;
     }
 
@@ -241,14 +236,7 @@ const MenuManager = () => {
       setLoading(true);
 
       const menuRef = doc(db, 'menus', selectedDate);
-      const staplesRef = doc(db, 'dailyStaples', 'config');
-
-      // Read the existing menu and Daily Staples configuration so the
-      // save operation can detect cross-category conflicts.
-      const [existingMenuSnap, staplesSnap] = await Promise.all([
-        getDoc(menuRef),
-        getDoc(staplesRef)
-      ]);
+      const existingMenuSnap = await getDoc(menuRef);
 
       const existingMenu = existingMenuSnap.exists()
         ? existingMenuSnap.data()
@@ -258,52 +246,6 @@ const MenuManager = () => {
             snacks: [],
             dinner: []
           };
-
-      const existingStaples = staplesSnap.exists()
-        ? staplesSnap.data()
-        : {
-            breakfast: [],
-            lunch: [],
-            snacks: [],
-            dinner: []
-          };
-
-      const nextStaples = {
-        breakfast: (existingStaples.breakfast || []).map(normalizeStapleForMenuCheck),
-        lunch: (existingStaples.lunch || []).map(normalizeStapleForMenuCheck),
-        snacks: (existingStaples.snacks || []).map(normalizeStapleForMenuCheck),
-        dinner: (existingStaples.dinner || []).map(normalizeStapleForMenuCheck)
-      };
-
-      // Check each menu item against Daily Staples in the SAME meal category.
-      // Existing items in the selected date's menu are not conflicts.
-      for (const mealType of ['breakfast', 'lunch', 'snacks', 'dinner']) {
-        for (const menuItem of menuItems[mealType]) {
-          const stapleItem = findItemByName(nextStaples[mealType], menuItem.name);
-
-          if (!stapleItem) continue;
-
-          // The item is already a Daily Staple. Ask before moving it.
-          const confirmed = window.confirm(
-            `"${menuItem.name}" is already a Daily Staple for ${mealType}.\n\n` +
-            `Do you want to remove it from Daily Staples and move it to the ` +
-            `${formatDate(selectedDate)} menu with quantity ${menuItem.quantity ?? 0}?`
-          );
-
-          if (!confirmed) {
-            showMessage(
-              'info',
-              `Save cancelled. "${menuItem.name}" remains a Daily Staple.`
-            );
-            return;
-          }
-
-          nextStaples[mealType] = removeItemByName(
-            nextStaples[mealType],
-            menuItem.name
-          );
-        }
-      }
 
       const nextMenu = {
         breakfast: menuItems.breakfast,
@@ -326,42 +268,18 @@ const MenuManager = () => {
         }
       );
 
-      const staplesChanged = ['breakfast', 'lunch', 'snacks', 'dinner'].some(
-        mealType =>
-          (existingStaples[mealType] || []).length !==
-          nextStaples[mealType].length ||
-          (existingStaples[mealType] || []).some((item, index) => {
-            const oldItem = normalizeStapleForMenuCheck(item);
-            const newItem = nextStaples[mealType][index];
-            return !itemsAreEqual(oldItem, newItem);
-          })
-      );
-
-      if (!menuChanged && !staplesChanged) {
+      if (!menuChanged) {
         showMessage('info', 'No changes detected. Nothing was updated.');
         return;
       }
 
-      const batch = writeBatch(db);
-
-      batch.set(menuRef, {
+      await setDoc(menuRef, {
         ...nextMenu,
         date: selectedDate,
         createdAt:
           existingMenu.createdAt || new Date().toLocaleString('en-CA'),
         updatedAt: new Date().toLocaleString('en-CA')
       });
-
-      // Only write Daily Staples when a confirmed move actually changed them.
-      if (staplesChanged) {
-        batch.set(staplesRef, {
-          ...existingStaples,
-          ...nextStaples,
-          updatedAt: new Date().toISOString()
-        });
-      }
-
-      await batch.commit();
 
       showMessage(
         'success',
@@ -390,12 +308,7 @@ const MenuManager = () => {
       fetchExistingMenus();
 
       if (date === selectedDate) {
-        setMenuItems({
-          breakfast: [],
-          lunch: [],
-          snacks: [],
-          dinner: []
-        });
+        await loadMenuForDate(date);
       }
     } catch (error) {
       console.error('Error deleting menu:', error);
@@ -404,25 +317,30 @@ const MenuManager = () => {
   };
 
   const handleLoadDefaultMenu = async () => {
+    if (isSundayDate(selectedDate)) {
+      showMessage('error', 'Sunday is a weekly holiday (Holiday – No Meals).');
+      return;
+    }
+
     try {
       setLoading(true);
-      let snap = await getDoc(doc(db, 'menus', 'default'));
-      if (!snap.exists()) {
-        snap = await getDoc(doc(db, 'defaultMenu', 'config'));
-      }
-      if (!snap.exists()) {
-        snap = await getDoc(doc(db, 'dailyStaples', 'config'));
-      }
+      const data = await fetchDefaultMenuDoc();
 
-      if (snap.exists()) {
-        const data = snap.data();
-        setMenuItems({
-          breakfast: (data.breakfast || []).map(normalizeMenuItem),
-          lunch: (data.lunch || []).map(normalizeMenuItem),
-          snacks: (data.snacks || []).map(normalizeMenuItem),
-          dinner: (data.dinner || []).map(normalizeMenuItem)
-        });
-        showMessage('success', 'Loaded Default Menu from Firestore!');
+      if (data) {
+        const resolved = resolveDefaultMenuForDate(data, selectedDate);
+        if (resolved) {
+          setMenuItems({
+            breakfast: (resolved.breakfast || []).map(normalizeMenuItem),
+            lunch: (resolved.lunch || []).map(normalizeMenuItem),
+            snacks: (resolved.snacks || []).map(normalizeMenuItem),
+            dinner: (resolved.dinner || []).map(normalizeMenuItem)
+          });
+          const dayKey = getWeekdayKey(selectedDate);
+          const dayLabel = dayKey ? WEEKDAY_LABELS[dayKey] : 'Default';
+          showMessage('success', `Loaded ${dayLabel} Default Menu from Firestore!`);
+        } else {
+          showMessage('error', 'No Default Menu configured for this weekday yet.');
+        }
       } else {
         showMessage('error', 'No Default Menu configured in Firestore yet.');
       }
@@ -552,24 +470,6 @@ const goToPreviousPage = () => {
                         {item.available ? 'Available' : 'Unavailable'}
                       </span>
 
-                      <label className="quantity-label">
-                        Qty:
-                      </label>
-
-                      <input
-                        type="number"
-                        min="0"
-                        value={item.quantity}
-                        onChange={(e) =>
-                          handleQuantityChange(
-                            'breakfast',
-                            index,
-                            e.target.value
-                          )
-                        }
-                        className="quantity-input"
-                      />
-
                       <button
                         className="remove-btn"
                         onClick={() =>
@@ -636,24 +536,6 @@ const goToPreviousPage = () => {
                       <span className="availability-text">
                         {item.available ? 'Available' : 'Unavailable'}
                       </span>
-
-                      <label className="quantity-label">
-                        Qty:
-                      </label>
-
-                      <input
-                        type="number"
-                        min="0"
-                        value={item.quantity}
-                        onChange={(e) =>
-                          handleQuantityChange(
-                            'lunch',
-                            index,
-                            e.target.value
-                          )
-                        }
-                        className="quantity-input"
-                      />
 
                       <button
                         className="remove-btn"
@@ -722,24 +604,6 @@ const goToPreviousPage = () => {
                         {item.available ? 'Available' : 'Unavailable'}
                       </span>
 
-                      <label className="quantity-label">
-                        Qty:
-                      </label>
-
-                      <input
-                        type="number"
-                        min="0"
-                        value={item.quantity}
-                        onChange={(e) =>
-                          handleQuantityChange(
-                            'snacks',
-                            index,
-                            e.target.value
-                          )
-                        }
-                        className="quantity-input"
-                      />
-
                       <button
                         className="remove-btn"
                         onClick={() =>
@@ -806,24 +670,6 @@ const goToPreviousPage = () => {
                       <span className="availability-text">
                         {item.available ? 'Available' : 'Unavailable'}
                       </span>
-
-                      <label className="quantity-label">
-                        Qty:
-                      </label>
-
-                      <input
-                        type="number"
-                        min="0"
-                        value={item.quantity}
-                        onChange={(e) =>
-                          handleQuantityChange(
-                            'dinner',
-                            index,
-                            e.target.value
-                          )
-                        }
-                        className="quantity-input"
-                      />
 
                       <button
                         className="remove-btn"
