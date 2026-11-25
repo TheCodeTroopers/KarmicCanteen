@@ -4,7 +4,7 @@ import { doc, setDoc } from 'firebase/firestore';
 import { db } from '../../firebase/config';
 import { getDocWithCache, cacheDocument, docCacheKey } from '../../utils/indexedDbCache';
 import { useAuth } from '../../context/AuthContext';
-import { getLocalDateString } from '../../utils/dateUtils';
+import { getLocalDateString, isSundayDate, resolveDefaultMenuForDate } from '../../utils/dateUtils';
 import {
   Calendar, Clock, CheckCircle2, AlertTriangle,
   Info, Coffee, Soup, Cookie, ChefHat, Check, History, X
@@ -192,6 +192,25 @@ const WeeklyMealSelector = ({ onSaveSuccess }) => {
       const menusData = {};
       const selectionsData = {};
 
+      // Load recurring default menu doc (fallback order: menus/default -> defaultMenu/config -> dailyStaples/config)
+      let defaultDocData = null;
+      const defaultSources = [
+        ['menus', 'default'],
+        ['defaultMenu', 'config'],
+        ['dailyStaples', 'config']
+      ];
+      for (const [col, docId] of defaultSources) {
+        const res = await getDocWithCache(
+          doc(db, col, docId),
+          docCacheKey(col, docId)
+        );
+        if (res.fromCache) setOffline(true);
+        if (res.exists && res.data) {
+          defaultDocData = res.data;
+          break;
+        }
+      }
+
       for (const day of days) {
         const menuRef = doc(db, 'menus', day.date);
         const menuResult = await getDocWithCache(
@@ -201,6 +220,11 @@ const WeeklyMealSelector = ({ onSaveSuccess }) => {
         if (menuResult.fromCache) setOffline(true);
         if (menuResult.exists) {
           menusData[day.date] = menuResult.data;
+        } else if (defaultDocData) {
+          const fallbackMenu = resolveDefaultMenuForDate(defaultDocData, day.date);
+          if (fallbackMenu) {
+            menusData[day.date] = fallbackMenu;
+          }
         }
 
         const selectionRef = doc(db, 'mealSelections', day.date, 'users', currentUser.uid);
@@ -244,19 +268,14 @@ const WeeklyMealSelector = ({ onSaveSuccess }) => {
     }
   };
 
-  // Normalize menu/staple items while preserving quantity and availability.
+  // Normalize menu/staple items while preserving availability (ignores legacy quantity).
   const normalizeMenuItem = (item) => {
-    if (typeof item === 'string') return { name: item.trim(), available: true, quantity: null };
+    if (typeof item === 'string') return { name: item.trim(), available: true };
     if (item && typeof item === 'object') {
       const name = String(item.name || '').trim();
-      let quantity = null;
-      if (item.quantity !== null && item.quantity !== undefined && item.quantity !== '') {
-        const parsed = Number(item.quantity);
-        quantity = Number.isFinite(parsed) ? Math.max(0, parsed) : null;
-      }
-      return { name, available: item.available !== false, quantity };
+      return { name, available: item.available !== false };
     }
-    return { name: String(item || '').trim(), available: true, quantity: null };
+    return { name: String(item || '').trim(), available: true };
   };
 
   const isEditAllowed = (dateStr) => {
@@ -269,6 +288,11 @@ const WeeklyMealSelector = ({ onSaveSuccess }) => {
   };
 
   const handleMealToggle = (dateStr, mealType) => {
+    if (isSundayDate(dateStr)) {
+      showMessage('error', 'Sunday is a weekly holiday — meal booking is disabled.');
+      return;
+    }
+
     const editAllowed = isEditAllowed(dateStr);
 
     if (!editAllowed) {
@@ -309,6 +333,7 @@ const handleSaveWeekly = async () => {
 
     for (const day of weekDays) {
       const dateStr = day.date;
+      if (isSundayDate(dateStr)) continue;
       const selections = weeklySelections[dateStr];
 
       if (!selections) continue;

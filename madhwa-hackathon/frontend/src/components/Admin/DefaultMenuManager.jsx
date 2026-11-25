@@ -1,21 +1,22 @@
 // src/components/Admin/DefaultMenuManager.jsx
 
 /**
- * Manages the "Default Menu" — recurring menu template items stored in Firestore.
- * 
+ * Manages the "Default Menu" — recurring weekday menu templates stored in Firestore.
+ *
  * Firestore Document Path:
- *   defaultMenu/config  (and synced with dailyStaples/config)
- * 
- * Each Default Menu item follows the standard menu item schema:
- *   name       -> item name
- *   available  -> whether the item is available by default (true/false)
- *   quantity   -> optional daily portion limit (null for unlimited)
+ *   menus/default (primary), dailyStaples/config (secondary), defaultMenu/config (tertiary)
+ *
+ * Schema:
+ *   - weekdays: { monday, tuesday, wednesday, thursday, friday, saturday }
+ *     Each weekday has { breakfast, lunch, snacks, dinner } arrays of { name, available }
+ *   - Top-level breakfast/lunch/snacks/dinner fields are preserved for legacy compatibility.
+ *   - Sunday is a permanent weekly holiday (Holiday – No Meals).
  */
 
 import React, { useState, useEffect } from 'react';
-import { doc, getDoc, setDoc, writeBatch } from 'firebase/firestore';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '../../firebase/config';
-import { getLocalDateString } from '../../utils/dateUtils';
+import { WEEKDAY_KEYS, WEEKDAY_LABELS, hasAnyMealItems } from '../../utils/dateUtils';
 import {
   Coffee,
   Soup,
@@ -27,6 +28,7 @@ import {
   Save,
   UtensilsCrossed,
   Sparkles,
+  CalendarOff,
   X
 } from 'lucide-react';
 import './DefaultMenuManager.css';
@@ -58,36 +60,45 @@ const MEAL_TYPES = [
   }
 ];
 
-const EMPTY_MENU = {
+const createEmptyMenu = () => ({
   breakfast: [],
   lunch: [],
   snacks: [],
   dinner: []
-};
+});
+
+const createEmptyWeekdays = () =>
+  WEEKDAY_KEYS.reduce((acc, day) => {
+    acc[day] = createEmptyMenu();
+    return acc;
+  }, {});
 
 const normalizeMenuItem = (item) => {
   if (typeof item === 'string') {
     return {
       name: item,
-      available: true,
-      quantity: null
+      available: true
     };
   }
 
   return {
     name: item?.name || '',
-    available: item?.available !== false,
-    quantity:
-      item?.quantity === null ||
-      item?.quantity === undefined ||
-      item?.quantity === ''
-        ? null
-        : Math.max(0, Number(item.quantity))
+    available: item?.available !== false
   };
 };
 
+const normalizeMealGroup = (menuObj) => ({
+  breakfast: (menuObj?.breakfast || []).map(normalizeMenuItem),
+  lunch: (menuObj?.lunch || []).map(normalizeMenuItem),
+  snacks: (menuObj?.snacks || []).map(normalizeMenuItem),
+  dinner: (menuObj?.dinner || []).map(normalizeMenuItem)
+});
+
 const DefaultMenuManager = () => {
-  const [menuItems, setMenuItems] = useState(EMPTY_MENU);
+  const [selectedDay, setSelectedDay] = useState('monday');
+  const [weeklyMenus, setWeeklyMenus] = useState(createEmptyWeekdays);
+  const [configuredDays, setConfiguredDays] = useState(() => new Set());
+  const [legacyMenu, setLegacyMenu] = useState(createEmptyMenu);
   const [currentItem, setCurrentItem] = useState({
     breakfast: '',
     lunch: '',
@@ -120,14 +131,25 @@ const DefaultMenuManager = () => {
 
       if (snap.exists()) {
         const data = snap.data();
-        setMenuItems({
-          breakfast: (data.breakfast || []).map(normalizeMenuItem),
-          lunch: (data.lunch || []).map(normalizeMenuItem),
-          snacks: (data.snacks || []).map(normalizeMenuItem),
-          dinner: (data.dinner || []).map(normalizeMenuItem)
+        const normalizedLegacy = normalizeMealGroup(data);
+        setLegacyMenu(normalizedLegacy);
+
+        const nextWeekdays = createEmptyWeekdays();
+        const nextConfigured = new Set();
+
+        WEEKDAY_KEYS.forEach((day) => {
+          if (data.weekdays?.[day] && typeof data.weekdays[day] === 'object') {
+            nextWeekdays[day] = normalizeMealGroup(data.weekdays[day]);
+            nextConfigured.add(day);
+          }
         });
+
+        setWeeklyMenus(nextWeekdays);
+        setConfiguredDays(nextConfigured);
       } else {
-        setMenuItems(EMPTY_MENU);
+        setLegacyMenu(createEmptyMenu());
+        setWeeklyMenus(createEmptyWeekdays());
+        setConfiguredDays(new Set());
       }
     } catch (error) {
       console.error('Error loading default menu:', error);
@@ -142,6 +164,31 @@ const DefaultMenuManager = () => {
     setTimeout(() => setMessage({ type: '', text: '' }), 4000);
   };
 
+  const activeMenu = weeklyMenus[selectedDay] || createEmptyMenu();
+
+  const updateSelectedDayMenu = (updater) => {
+    setWeeklyMenus((prev) => ({
+      ...prev,
+      [selectedDay]: updater(prev[selectedDay] || createEmptyMenu())
+    }));
+    setConfiguredDays((prev) => {
+      const next = new Set(prev);
+      next.add(selectedDay);
+      return next;
+    });
+  };
+
+  const handleDayChange = (dayKey) => {
+    setSelectedDay(dayKey);
+    setCurrentItem({ breakfast: '', lunch: '', snacks: '', dinner: '' });
+  };
+
+  const handleApplyLegacyToDay = () => {
+    if (!hasAnyMealItems(legacyMenu)) return;
+    updateSelectedDayMenu(() => normalizeMealGroup(legacyMenu));
+    showMessage('info', `Copied legacy default menu into ${WEEKDAY_LABELS[selectedDay]}. Click Save to persist.`);
+  };
+
   const handleAddItem = (mealType) => {
     const itemName = currentItem[mealType].trim();
 
@@ -150,62 +197,44 @@ const DefaultMenuManager = () => {
       return;
     }
 
-    const alreadyExists = menuItems[mealType].some(
-      existing => existing.name.toLowerCase() === itemName.toLowerCase()
+    const alreadyExists = activeMenu[mealType].some(
+      (existing) => existing.name.toLowerCase() === itemName.toLowerCase()
     );
 
     if (alreadyExists) {
-      showMessage('error', 'This item is already in the default menu');
+      showMessage('error', `This item is already in ${WEEKDAY_LABELS[selectedDay]}'s menu`);
       return;
     }
 
-    setMenuItems(prev => ({
-      ...prev,
+    updateSelectedDayMenu((dayMenu) => ({
+      ...dayMenu,
       [mealType]: [
-        ...prev[mealType],
+        ...dayMenu[mealType],
         {
           name: itemName,
-          available: true,
-          quantity: null
+          available: true
         }
       ]
     }));
 
-    setCurrentItem(prev => ({
+    setCurrentItem((prev) => ({
       ...prev,
       [mealType]: ''
     }));
   };
 
   const handleRemoveItem = (mealType, index) => {
-    setMenuItems(prev => ({
-      ...prev,
-      [mealType]: prev[mealType].filter((_, i) => i !== index)
+    updateSelectedDayMenu((dayMenu) => ({
+      ...dayMenu,
+      [mealType]: dayMenu[mealType].filter((_, i) => i !== index)
     }));
   };
 
   const handleAvailabilityChange = (mealType, index) => {
-    setMenuItems(prev => ({
-      ...prev,
-      [mealType]: prev[mealType].map((item, i) =>
+    updateSelectedDayMenu((dayMenu) => ({
+      ...dayMenu,
+      [mealType]: dayMenu[mealType].map((item, i) =>
         i === index ? { ...item, available: !item.available } : item
-      )
-    }));
-  };
-
-  const handleQuantityChange = (mealType, index, value) => {
-    let quantity;
-    if (value === '') {
-      quantity = null;
-    } else {
-      const parsed = parseInt(value, 10);
-      quantity = Number.isNaN(parsed) ? null : Math.max(0, parsed);
-    }
-
-    setMenuItems(prev => ({
-      ...prev,
-      [mealType]: prev[mealType].map((item, i) =>
-        i === index ? { ...item, quantity } : item
       )
     }));
   };
@@ -214,11 +243,24 @@ const DefaultMenuManager = () => {
     try {
       setSaving(true);
 
+      const weekdaysPayload = {};
+      WEEKDAY_KEYS.forEach((day) => {
+        if (configuredDays.has(day) || hasAnyMealItems(weeklyMenus[day])) {
+          weekdaysPayload[day] = normalizeMealGroup(weeklyMenus[day]);
+        }
+      });
+
+      // Preserve legacy top-level fields if they exist, or seed from Monday if empty
+      const topLevelSource = hasAnyMealItems(legacyMenu)
+        ? legacyMenu
+        : weekdaysPayload.monday || createEmptyMenu();
+
       const payload = {
-        breakfast: menuItems.breakfast.map(normalizeMenuItem),
-        lunch: menuItems.lunch.map(normalizeMenuItem),
-        snacks: menuItems.snacks.map(normalizeMenuItem),
-        dinner: menuItems.dinner.map(normalizeMenuItem),
+        breakfast: topLevelSource.breakfast.map(normalizeMenuItem),
+        lunch: topLevelSource.lunch.map(normalizeMenuItem),
+        snacks: topLevelSource.snacks.map(normalizeMenuItem),
+        dinner: topLevelSource.dinner.map(normalizeMenuItem),
+        weekdays: weekdaysPayload,
         updatedAt: new Date().toISOString()
       };
 
@@ -239,7 +281,7 @@ const DefaultMenuManager = () => {
         console.warn('defaultMenu update warning (rule may be un-deployed on console):', e);
       }
 
-      showMessage('success', 'Default Menu saved successfully to Cloud Firestore!');
+      showMessage('success', 'Weekly Default Menus saved successfully to Cloud Firestore!');
     } catch (error) {
       console.error('Error saving default menu:', error);
       showMessage('error', `Failed to save Default Menu: ${error.message || 'Permission denied'}`);
@@ -248,11 +290,20 @@ const DefaultMenuManager = () => {
     }
   };
 
-  const getTotalItems = () =>
-    menuItems.breakfast.length +
-    menuItems.lunch.length +
-    menuItems.snacks.length +
-    menuItems.dinner.length;
+  const getDayTotalItems = (dayKey) => {
+    const dayMenu = weeklyMenus[dayKey] || createEmptyMenu();
+    return (
+      dayMenu.breakfast.length +
+      dayMenu.lunch.length +
+      dayMenu.snacks.length +
+      dayMenu.dinner.length
+    );
+  };
+
+  const isUsingLegacyFallback =
+    !configuredDays.has(selectedDay) &&
+    getDayTotalItems(selectedDay) === 0 &&
+    hasAnyMealItems(legacyMenu);
 
   if (loading) {
     return (
@@ -269,10 +320,10 @@ const DefaultMenuManager = () => {
         <div className="header-info">
           <h2>
             <UtensilsCrossed size={22} style={{ color: 'var(--accent-primary)', verticalAlign: 'middle', marginRight: '8px' }} />
-            Default Menu Management
+            Weekly Default Menu Management
           </h2>
           <p className="subtitle">
-            Configure default canteen menu templates stored dynamically in Cloud Firestore.
+            Configure recurring menus for Monday–Saturday. Each weekday repeats automatically throughout the year.
           </p>
         </div>
 
@@ -282,7 +333,7 @@ const DefaultMenuManager = () => {
           disabled={saving}
         >
           <Save size={16} style={{ marginRight: '6px' }} />
-          {saving ? 'Saving...' : 'Save Default Menu'}
+          {saving ? 'Saving...' : 'Save Weekly Menus'}
         </button>
       </div>
 
@@ -295,11 +346,56 @@ const DefaultMenuManager = () => {
         </div>
       )}
 
+      {/* Weekday Tabs (Monday - Saturday) + Sunday Holiday Indicator */}
+      <div className="weekday-tabs-bar" role="tablist" aria-label="Weekday Default Menus">
+        {WEEKDAY_KEYS.map((dayKey) => {
+          const count = getDayTotalItems(dayKey);
+          const isActive = selectedDay === dayKey;
+          return (
+            <button
+              key={dayKey}
+              type="button"
+              role="tab"
+              aria-selected={isActive}
+              className={`weekday-tab-btn ${isActive ? 'active' : ''}`}
+              onClick={() => handleDayChange(dayKey)}
+            >
+              <span className="weekday-tab-label">{WEEKDAY_LABELS[dayKey]}</span>
+              <span className="weekday-tab-count">{count}</span>
+            </button>
+          );
+        })}
+
+        <div
+          className="weekday-sunday-pill"
+          title="Sunday is a permanent weekly holiday — no menu and no meal booking"
+        >
+          <CalendarOff size={14} />
+          <span>Sunday: Holiday – No Meals</span>
+        </div>
+      </div>
+
       <div className="stats-summary">
         <div className="stat-pill">
           <Sparkles size={14} style={{ color: 'var(--accent-primary)' }} />
-          <span>Total Default Items: <strong>{getTotalItems()}</strong></span>
+          <span>
+            {WEEKDAY_LABELS[selectedDay]} Items: <strong>{getDayTotalItems(selectedDay)}</strong>
+          </span>
         </div>
+
+        {isUsingLegacyFallback && (
+          <div className="stat-pill legacy-fallback-pill">
+            <Info size={14} style={{ color: 'var(--accent-primary)' }} />
+            <span>Currently falling back to legacy generic default menu.</span>
+            <button
+              type="button"
+              className="btn-copy-legacy"
+              onClick={handleApplyLegacyToDay}
+            >
+              Copy Legacy to {WEEKDAY_LABELS[selectedDay]}
+            </button>
+          </div>
+        )}
       </div>
 
       <div className="meals-grid">
@@ -310,18 +406,18 @@ const DefaultMenuManager = () => {
                 <Icon size={18} style={{ color: 'var(--accent-primary)', marginRight: '8px' }} />
                 <h3>{label}</h3>
               </div>
-              <span className="count-badge">{menuItems[key].length} items</span>
+              <span className="count-badge">{activeMenu[key].length} items</span>
             </div>
 
             <div className="add-item-form">
               <input
                 type="text"
-                placeholder={placeholder}
+                placeholder={`${placeholder} (${WEEKDAY_LABELS[selectedDay]})`}
                 value={currentItem[key]}
-                onChange={e =>
-                  setCurrentItem(prev => ({ ...prev, [key]: e.target.value }))
+                onChange={(e) =>
+                  setCurrentItem((prev) => ({ ...prev, [key]: e.target.value }))
                 }
-                onKeyPress={e => e.key === 'Enter' && handleAddItem(key)}
+                onKeyPress={(e) => e.key === 'Enter' && handleAddItem(key)}
               />
               <button
                 className="btn btn-primary add-btn"
@@ -332,10 +428,12 @@ const DefaultMenuManager = () => {
             </div>
 
             <div className="items-list">
-              {menuItems[key].length === 0 ? (
-                <p className="empty-text">No default items configured for {label}</p>
+              {activeMenu[key].length === 0 ? (
+                <p className="empty-text">
+                  No items configured for {WEEKDAY_LABELS[selectedDay]} {label}
+                </p>
               ) : (
-                menuItems[key].map((item, index) => (
+                activeMenu[key].map((item, index) => (
                   <div key={index} className="item-row">
                     <span className="item-name" title={item.name}>{item.name}</span>
 
@@ -350,19 +448,6 @@ const DefaultMenuManager = () => {
                           {item.available ? 'Available' : 'Unavailable'}
                         </span>
                       </label>
-
-                      <div className="quantity-control">
-                        <label>Qty:</label>
-                        <input
-                          type="number"
-                          min="0"
-                          placeholder="∞"
-                          value={item.quantity === null ? '' : item.quantity}
-                          onChange={e =>
-                            handleQuantityChange(key, index, e.target.value)
-                          }
-                        />
-                      </div>
 
                       <button
                         className="btn-remove"
@@ -384,4 +469,3 @@ const DefaultMenuManager = () => {
 };
 
 export default DefaultMenuManager;
-

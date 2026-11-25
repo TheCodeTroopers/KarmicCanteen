@@ -8,7 +8,7 @@ import {
 import { db } from '../../firebase/config';
 import { useAuth } from '../../context/AuthContext';
 import { getDocWithCache, docCacheKey } from '../../utils/indexedDbCache';
-import { getLocalDateString } from '../../utils/dateUtils';
+import { getLocalDateString, isSundayDate, resolveDefaultMenuForDate } from '../../utils/dateUtils';
 import { 
   Calendar as CalendarIcon, 
   ChevronLeft, 
@@ -135,10 +135,8 @@ const MonthlyMealCalendar = ({
   const [error, setError] = useState(null);
   const [offline, setOffline] = useState(false);
   const [isDetailPanelOpen, setIsDetailPanelOpen] = useState(false);
-  // State for default menu handling and selected menu
+  // State for default menu document (supports weekday-specific + legacy generic fallback)
   const [defaultMenu, setDefaultMenu] = useState(null);
-  const [selectedMenuData, setSelectedMenuData] = useState(null);
-  const [isDefaultMenu, setIsDefaultMenu] = useState(false);
 
   // In-flight read tracking to optimize Firestore reads and eliminate duplicate requests
   const loadingBookingsRef = useRef(false);
@@ -208,9 +206,22 @@ const MonthlyMealCalendar = ({
 
 
   // 2. Load the **default weekday** menu (priority: defaultMenu/config → menus/default → dailyStaples/config)
-  // Added diagnostic logging
-  console.log('[MonthlyMealCalendar] Starting default menu load');
   useEffect(() => {
+    const hasConfiguredMenu = (docData) => {
+      if (!docData) return false;
+      const hasLegacy = Boolean(
+        docData.breakfast?.length ||
+        docData.lunch?.length ||
+        docData.snacks?.length ||
+        docData.dinner?.length
+      );
+      const hasWeekdays =
+        docData.weekdays &&
+        typeof docData.weekdays === 'object' &&
+        Object.keys(docData.weekdays).length > 0;
+      return hasLegacy || hasWeekdays;
+    };
+
     const loadDefaultMenu = async () => {
       try {
         // 1) defaultMenu/config
@@ -219,37 +230,27 @@ const MonthlyMealCalendar = ({
           ref,
           docCacheKey('defaultMenu', 'config')
         );
-        console.log('[MonthlyMealCalendar] load defaultMenu/config', { exists, fromCache, data });
         // 2) fallback to menus/default if not found or empty data
-        if (!exists || !(data?.breakfast?.length || data?.lunch?.length || data?.snacks?.length || data?.dinner?.length)) {
+        if (!exists || !hasConfiguredMenu(data)) {
           ref = doc(db, 'menus', 'default');
           ({ data, exists, fromCache } = await getDocWithCache(
             ref,
             docCacheKey('menus', 'default')
           ));
-          console.log('[MonthlyMealCalendar] fallback fetch menus/default', { exists, fromCache, data });
         }
         // 3) final fallback to dailyStaples/config
-        if (!exists || !(data?.breakfast?.length || data?.lunch?.length || data?.snacks?.length || data?.dinner?.length)) {
+        if (!exists || !hasConfiguredMenu(data)) {
           ref = doc(db, 'dailyStaples', 'config');
           ({ data, exists, fromCache } = await getDocWithCache(
             ref,
             docCacheKey('dailyStaples', 'config')
           ));
-          console.log('[MonthlyMealCalendar] final fallback fetch dailyStaples/config', { exists, fromCache, data });
         }
         if (fromCache) setOffline(true);
-        if (exists && data) {
-          const normalized = {
-            breakfast: data.breakfast || [],
-            lunch: data.lunch || [],
-            snacks: data.snacks || [],
-            dinner: data.dinner || []
-          };
-          console.log('[MonthlyMealCalendar] setting defaultMenu state', normalized);
-          setDefaultMenu(normalized);
+        if (exists && data && hasConfiguredMenu(data)) {
+          setDefaultMenu(data);
         } else {
-          console.log('[MonthlyMealCalendar] No default menu document found');
+          setDefaultMenu(null);
         }
       } catch (e) {
         console.error('[MonthlyMealCalendar] Error loading default menu:', e);
@@ -258,17 +259,30 @@ const MonthlyMealCalendar = ({
     loadDefaultMenu();
   }, []);
 
+  // Resolve menu for any dateStr: Sunday -> null; Date-specific -> priority; Else -> weekday/legacy default
+  const resolveMenuForDate = useCallback(
+    (dateStr) => {
+      if (!dateStr || isSundayDate(dateStr)) {
+        return { menu: null, isDefault: false, isHoliday: isSundayDate(dateStr) };
+      }
+      const specific = menusMap[dateStr];
+      if (specific) {
+        return { menu: specific, isDefault: false, isHoliday: false };
+      }
+      const fallback = resolveDefaultMenuForDate(defaultMenu, dateStr);
+      return { menu: fallback, isDefault: Boolean(fallback), isHoliday: false };
+    },
+    [menusMap, defaultMenu]
+  );
 
+  const { menu: selectedMenuData, isDefault: isDefaultMenu } = useMemo(
+    () => resolveMenuForDate(selectedDate),
+    [resolveMenuForDate, selectedDate]
+  );
 
-  // 3. When a date is clicked, decide which menu to show (date‑specific or default)
+  // 3. When a date is clicked, select the date and open the detail panel
   const handleDateClick = (dateStr) => {
     if (!dateStr) return;
-    const specific = menusMap[dateStr];
-    const fallback = defaultMenu || null;
-    const menuToShow = specific || fallback;
-    console.log('[MonthlyMealCalendar] handleDateClick', { dateStr, specificExists: !!specific, usingDefault: !specific && !!fallback });
-    setSelectedMenuData(menuToShow);
-    setIsDefaultMenu(!specific && !!fallback);
     setSelectedDate(dateStr);
     const [y] = dateStr.split('-').map(Number);
     if (y && !isNaN(y) && y !== currentYear) {
@@ -278,22 +292,9 @@ const MonthlyMealCalendar = ({
     setIsDetailPanelOpen(true);
   };
 
-  // 4. Also handle upcoming‑meal clicks the same way
+  // 4. Also handle upcoming-meal clicks the same way
   const handleUpcomingMealClick = (dateStr) => {
-    if (!dateStr) return;
-    const specific = menusMap[dateStr];
-    const fallback = defaultMenu || null;
-    const menuToShow = specific || fallback;
-    console.log('[MonthlyMealCalendar] handleUpcomingMealClick', { dateStr, specificExists: !!specific, usingDefault: !specific && !!fallback });
-    setSelectedMenuData(menuToShow);
-    setIsDefaultMenu(!specific && !!fallback);
-    setSelectedDate(dateStr);
-    const [y] = dateStr.split('-').map(Number);
-    if (y && !isNaN(y) && y !== currentYear) {
-      setCurrentYear(y);
-    }
-    if (onSelectDate) onSelectDate(dateStr);
-    setIsDetailPanelOpen(true);
+    handleDateClick(dateStr);
   };
 
   // Duplicate default menu loader removed
@@ -519,16 +520,31 @@ const MonthlyMealCalendar = ({
   }, [currentYear, selectedMonthIndex, bookingsMap, menusMap, todayStr]);
 
   // -------------------------------------------------------------
-  // UPCOMING MEALS LIST (Next few dates with published menus)
+  // UPCOMING MEALS LIST (Next few dates with published or recurring menus, excluding Sundays)
   // -------------------------------------------------------------
   const upcomingMealsList = useMemo(() => {
-    const datesWithMenus = Object.keys(menusMap)
-      .filter((dateStr) => dateStr >= todayStr)
+    const candidateDates = new Set(
+      Object.keys(menusMap).filter((dateStr) => dateStr >= todayStr && !isSundayDate(dateStr))
+    );
+
+    if (defaultMenu) {
+      for (let i = 0; i < 14; i++) {
+        const d = new Date(todayDate);
+        d.setDate(todayDate.getDate() + i);
+        const dateStr = getLocalDateString(d);
+        if (!isSundayDate(dateStr) && resolveDefaultMenuForDate(defaultMenu, dateStr)) {
+          candidateDates.add(dateStr);
+        }
+      }
+    }
+
+    const datesWithMenus = Array.from(candidateDates)
       .sort((a, b) => a.localeCompare(b))
-      .slice(0, 6); // Display next 6 upcoming published menu dates
+      .slice(0, 6); // Display next 6 upcoming meal dates
 
     return datesWithMenus.map((dateStr) => {
-      const menu = menusMap[dateStr] || {};
+      const { menu } = resolveMenuForDate(dateStr);
+      const safeMenu = menu || {};
       const booking = bookingsMap[dateStr];
       const hasBooking = Boolean(booking && booking.count > 0 && booking.status !== 'cancelled');
       const isCancelled = booking?.status === 'cancelled';
@@ -555,7 +571,7 @@ const MonthlyMealCalendar = ({
 
       // Meal category summary breakdown
       const mealsSummary = MEAL_CATEGORIES.map(({ key, label }) => {
-        const raw = menu[key];
+        const raw = safeMenu[key];
         let items = [];
         if (Array.isArray(raw)) {
           items = raw.map(i => (typeof i === 'string' ? i : i.name)).filter(Boolean);
@@ -591,7 +607,7 @@ const MonthlyMealCalendar = ({
         totalItemsCount: mealsSummary.reduce((acc, m) => acc + m.items.length, 0)
       };
     });
-  }, [menusMap, bookingsMap, todayStr, todayDate, deadlineHour, deadlineMinute]);
+  }, [menusMap, defaultMenu, resolveMenuForDate, bookingsMap, todayStr, todayDate, deadlineHour, deadlineMinute]);
 
   // Calculate days for a given month index (0-11)
   const getMonthDays = (monthIndex) => {
@@ -606,22 +622,24 @@ const MonthlyMealCalendar = ({
 
   // Selected date status details
   const selectedDateDetails = useMemo(() => {
-    const hasMenu = Boolean(menusMap[selectedDate]);
+    const { menu: resolvedMenu, isDefault, isHoliday } = resolveMenuForDate(selectedDate);
+    const hasMenu = !isHoliday && Boolean(resolvedMenu);
     const booking = bookingsMap[selectedDate];
     const hasBooking = Boolean(booking && booking.count > 0 && booking.status !== 'cancelled');
     const isCancelled = booking?.status === 'cancelled';
-    const deadlinePassed = isBookingDeadlinePassed(selectedDate, deadlineHour, deadlineMinute);
-    const menuData = menusMap[selectedDate];
+    const deadlinePassed = isHoliday || isBookingDeadlinePassed(selectedDate, deadlineHour, deadlineMinute);
 
     return {
       hasMenu,
+      isDefault,
+      isHoliday,
       hasBooking,
       isCancelled,
       booking,
       deadlinePassed,
-      menuData
+      menuData: resolvedMenu
     };
-  }, [selectedDate, menusMap, bookingsMap, deadlineHour, deadlineMinute]);
+  }, [selectedDate, resolveMenuForDate, bookingsMap, deadlineHour, deadlineMinute]);
 
   return (
     <div className="monthly-meal-calendar">
@@ -799,40 +817,49 @@ const MonthlyMealCalendar = ({
 
             {/* Status Pills for Selected Date */}
             <div className="selected-date-badges">
-              {selectedDateDetails.hasMenu ? (
-                <span className="status-pill pill-menu">
-                  <span className="pill-dot dot-green"></span> Menu Published
-                </span>
-              ) : (
-                <span className="status-pill pill-muted">
-                  No menu published yet
-                </span>
-              )}
-
-              {selectedDateDetails.isCancelled ? (
+              {selectedDateDetails.isHoliday ? (
                 <span className="status-pill pill-cancelled">
-                  <span className="pill-dot dot-orange"></span> Booking Cancelled
-                </span>
-              ) : selectedDateDetails.hasBooking ? (
-                <span className="status-pill pill-booked">
-                  <span className="pill-dot dot-blue"></span>
-                  {selectedDateDetails.booking.count} Meal{selectedDateDetails.booking.count > 1 ? 's' : ''} Booked (
-                  {selectedDateDetails.booking.meals.join(', ')})
+                  <span className="pill-dot dot-orange"></span> Holiday – No Meals
                 </span>
               ) : (
-                <span className="status-pill pill-muted">
-                  No meals booked
-                </span>
-              )}
+                <>
+                  {selectedDateDetails.hasMenu ? (
+                    <span className="status-pill pill-menu">
+                      <span className="pill-dot dot-green"></span>
+                      {selectedDateDetails.isDefault ? 'Default Weekday Menu' : 'Menu Published'}
+                    </span>
+                  ) : (
+                    <span className="status-pill pill-muted">
+                      No menu published yet
+                    </span>
+                  )}
 
-              {selectedDateDetails.deadlinePassed ? (
-                <span className="status-pill pill-deadline">
-                  <span className="pill-dot dot-orange"></span> Booking Deadline Passed
-                </span>
-              ) : (
-                <span className="status-pill pill-open">
-                  <Clock size={12} /> Booking Open (Closes {formatDeadlineTime()})
-                </span>
+                  {selectedDateDetails.isCancelled ? (
+                    <span className="status-pill pill-cancelled">
+                      <span className="pill-dot dot-orange"></span> Booking Cancelled
+                    </span>
+                  ) : selectedDateDetails.hasBooking ? (
+                    <span className="status-pill pill-booked">
+                      <span className="pill-dot dot-blue"></span>
+                      {selectedDateDetails.booking.count} Meal{selectedDateDetails.booking.count > 1 ? 's' : ''} Booked (
+                      {selectedDateDetails.booking.meals.join(', ')})
+                    </span>
+                  ) : (
+                    <span className="status-pill pill-muted">
+                      No meals booked
+                    </span>
+                  )}
+
+                  {selectedDateDetails.deadlinePassed ? (
+                    <span className="status-pill pill-deadline">
+                      <span className="pill-dot dot-orange"></span> Booking Deadline Passed
+                    </span>
+                  ) : (
+                    <span className="status-pill pill-open">
+                      <Clock size={12} /> Booking Open (Closes {formatDeadlineTime()})
+                    </span>
+                  )}
+                </>
               )}
             </div>
           </div>
@@ -1058,9 +1085,9 @@ const MonthlyMealCalendar = ({
                   const isSunday = dayOfWeek === 0;
 
                   // Indicators
-                  const hasMenu = Boolean(menusMap[dateStr]);
+                  const hasMenu = !isSunday && Boolean(menusMap[dateStr] || resolveDefaultMenuForDate(defaultMenu, dateStr));
                   const hasBooking = Boolean(bookingsMap[dateStr] && bookingsMap[dateStr].count > 0 && bookingsMap[dateStr].status !== 'cancelled');
-                  const isDeadlinePassed = isBookingDeadlinePassed(dateStr, deadlineHour, deadlineMinute);
+                  const isDeadlinePassed = !isSunday && isBookingDeadlinePassed(dateStr, deadlineHour, deadlineMinute);
 
                   return (
                     <button
@@ -1068,7 +1095,8 @@ const MonthlyMealCalendar = ({
                       type="button"
                       className={`day-cell-btn ${isToday ? 'is-today' : ''} ${isSelected ? 'is-selected' : ''} ${isSunday ? 'is-sunday' : ''}`}
                       onClick={() => handleDateClick(dateStr)}
-                      aria-label={`${monthName} ${day}, ${currentYear}${isToday ? ' (Today)' : ''}${isSelected ? ' (Selected)' : ''}${hasMenu ? ' (Menu Published)' : ''}${hasBooking ? ' (Meal Booked)' : ''}${isDeadlinePassed ? ' (Deadline Passed)' : ''}`}
+                      title={isSunday ? 'Holiday – No Meals' : undefined}
+                      aria-label={`${monthName} ${day}, ${currentYear}${isSunday ? ' (Holiday – No Meals)' : ''}${isToday ? ' (Today)' : ''}${isSelected ? ' (Selected)' : ''}${hasMenu ? ' (Menu Available)' : ''}${hasBooking ? ' (Meal Booked)' : ''}${isDeadlinePassed ? ' (Deadline Passed)' : ''}`}
                       aria-pressed={isSelected}
                     >
                       <span className="day-number">{day}</span>
@@ -1114,6 +1142,7 @@ const MonthlyMealCalendar = ({
         onClose={() => setIsDetailPanelOpen(false)}
         dateStr={selectedDate}
         menuData={selectedMenuData}
+        isDefaultMenu={isDefaultMenu}
         bookingData={bookingsMap[selectedDate]}
         deadlineHour={deadlineHour}
         deadlineMinute={deadlineMinute}
