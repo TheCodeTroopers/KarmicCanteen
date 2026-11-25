@@ -183,40 +183,23 @@ service cloud.firestore {
         && (
           request.auth.uid == userId
           || isAdmin()
+          || isSuperAdmin()
         );
 
       // New documents must use boolean meal preferences.
-      // Employees cannot create pre-cancelled bookings (status cannot be 'cancelled').
+
       allow create: if isSignedIn()
-        && (
-          isAdmin()
-          || (
-            request.auth.uid == userId
-            && validMealSelectionMetadata(userId, date)
-            && validNewMealPreferences(request.resource.data)
-            && (
-              !('status' in request.resource.data)
-              || (request.resource.data.status != 'cancelled' && request.resource.data.status != 'Cancelled')
-            )
-          )
-        );
+        && request.auth.uid == userId
+        && validMealSelectionMetadata(userId, date)
+        && validNewMealPreferences(request.resource.data);
 
       // Updates allow boolean preferences.
       // Historical arrays are allowed only when unchanged.
-      // Employees cannot directly cancel or modify booking status — must use cancelBooking Cloud Function.
+
       allow update: if isSignedIn()
-        && (
-          isAdmin()
-          || (
-            request.auth.uid == userId
-            && validMealSelectionMetadata(userId, date)
-            && validUpdatedMealPreferences()
-            && (
-              (!('status' in request.resource.data) && !('status' in resource.data))
-              || ('status' in request.resource.data && 'status' in resource.data && request.resource.data.status == resource.data.status)
-            )
-          )
-        );
+        && request.auth.uid == userId
+        && validMealSelectionMetadata(userId, date)
+        && validUpdatedMealPreferences();
 
       // Employees cannot delete meal-selection documents.
 

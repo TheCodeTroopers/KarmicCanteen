@@ -14,6 +14,7 @@ import {
   Shield,
   Trash2,
   Upload,
+  ClipboardList,
 } from 'lucide-react';
 import {
   collection,
@@ -31,6 +32,7 @@ import DeleteEmployeeModal from './DeleteEmployeeModal';
 import EmployeeDetailsModal from './EmployeeDetailsModal';
 import BulkUploadModal from './BulkUploadModal';
 import './SuperAdminDashboard.css';
+import MealParticipationReport from '../Shared/MealParticipationReport';
 
 const SuperAdminDashboard = () => {
   // Real Firestore employees state
@@ -335,6 +337,7 @@ const SuperAdminDashboard = () => {
         <button className={`super-admin-nav-item ${activeView === 'overview' ? 'active' : ''}`} onClick={() => setActiveView('overview')}><LayoutDashboard size={18} />Dashboard</button>
         <button className={`super-admin-nav-item ${activeView === 'employees' ? 'active' : ''}`} onClick={() => setActiveView('employees')}><Users size={18} />Employee Management</button>
         <button className={`super-admin-nav-item ${activeView === 'admins' ? 'active' : ''}`} onClick={() => setActiveView('admins')}><Shield size={18} />Admin Management</button>
+        <button className={`super-admin-nav-item ${activeView === 'meal-participation' ? 'active' : ''}`} onClick={() => setActiveView('meal-participation')}><ClipboardList size={18} />Meal Participation</button>
       </aside>
 
       <main className="super-admin-dashboard">
@@ -342,8 +345,8 @@ const SuperAdminDashboard = () => {
           <div className="header-title-row">
             <div className="header-icon-wrap"><ShieldCheck size={26} /></div>
             <div>
-              <h1>{activeView === 'overview' ? 'Super Admin Dashboard' : activeView === 'admins' ? 'Admin Management' : 'Employee Management'}</h1>
-              <p className="subtitle">{activeView === 'overview' ? 'Overview of registered users and account management' : activeView === 'admins' ? 'Create and manage administrator accounts' : 'Manage employee accounts and staff directory'}</p>
+              <h1>{activeView === 'overview' ? 'Super Admin Dashboard' : activeView === 'admins' ? 'Admin Management' : activeView === 'meal-participation' ? 'Meal Participation' : 'Employee Management'}</h1>
+              <p className="subtitle">{activeView === 'overview' ? 'Overview of registered users and account management' : activeView === 'admins' ? 'Create and manage administrator accounts' : activeView === 'meal-participation' ? 'View employee meal selections by date' : 'Manage employee accounts and staff directory'}</p>
             </div>
           </div>
           <div className="header-stats-pill"><Users size={16} /><span>{allUsers.length} Registered Users</span></div>
@@ -399,6 +402,10 @@ const SuperAdminDashboard = () => {
             {!loading && error && <div className="superadmin-state-container error-state"><div className="state-icon-badge error"><AlertCircle size={32} /></div><h3 className="state-title">Unable to Load Employees</h3><p className="state-subtitle">{error}</p><button type="button" className="btn btn-secondary retry-btn" onClick={retryFetch}><RefreshCw size={14} /> Retry</button></div>}
             {!loading && !error && <EmployeeTable employees={filteredEmployees} onSelectEmployee={setSelectedEmployee} onInitiateEdit={setEmployeeToEdit} onInitiateDelete={setEmployeeToDelete} />}
           </section>
+        )}
+
+        {activeView === 'meal-participation' && (
+          <MealParticipationReport />
         )}
 
         {activeView === 'admins' && (

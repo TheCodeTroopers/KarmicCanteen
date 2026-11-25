@@ -1,13 +1,14 @@
 // src/components/Admin/AdminDashboard.jsx
 import React from 'react';
 import { Routes, Route, NavLink, Navigate } from 'react-router-dom';
-import { Settings, BarChart3, UtensilsCrossed, TrendingUp, Cpu, Megaphone, Settings2, Coffee } from 'lucide-react';
+import { Settings, BarChart3, UtensilsCrossed, TrendingUp, Cpu, Megaphone, Settings2, Coffee, Users } from 'lucide-react';
 import AnalyticsDashboard from './AnalyticsDashboard';
 import MenuManager from './MenuManager';
 import ReportsDashboard from './ReportsDashboard';
 import AdminSettings from './AdminSettings';
 import FestivalAnnouncements from './FestivalAnnouncements';
 import DefaultMenuManager from './DefaultMenuManager';
+import MealParticipationReport from '../Shared/MealParticipationReport';
 import './AdminDashboard.css';
 
 const AdminDashboard = () => {
@@ -22,38 +23,44 @@ const AdminDashboard = () => {
       </div>
 
       <div className="admin-tabs">
-        <NavLink 
-          to="/admin/analytics" 
+        <NavLink
+          to="/admin/analytics"
           className={({ isActive }) => isActive ? 'tab active' : 'tab'}
         >
           <BarChart3 size={16} /> Analytics
         </NavLink>
-        <NavLink 
-          to="/admin/menu" 
+        <NavLink
+          to="/admin/menu"
           className={({ isActive }) => isActive ? 'tab active' : 'tab'}
         >
           <UtensilsCrossed size={16} /> Menu
         </NavLink>
-        <NavLink 
-          to="/admin/default-menu" 
+        <NavLink
+          to="/admin/default-menu"
           className={({ isActive }) => isActive ? 'tab active' : 'tab'}
         >
           <Coffee size={16} /> Default Menu
         </NavLink>
-        <NavLink 
-          to="/admin/reports" 
+        <NavLink
+          to="/admin/meal-participation"
+          className={({ isActive }) => isActive ? 'tab active' : 'tab'}
+        >
+          <Users size={16} /> Meal Participation
+        </NavLink>
+        <NavLink
+          to="/admin/reports"
           className={({ isActive }) => isActive ? 'tab active' : 'tab'}
         >
           <TrendingUp size={16} /> Reports
         </NavLink>
-        <NavLink 
-          to="/admin/announcements" 
+        <NavLink
+          to="/admin/announcements"
           className={({ isActive }) => isActive ? 'tab active' : 'tab'}
         >
           <Megaphone size={16} /> Announcements
         </NavLink>
-        <NavLink 
-          to="/admin/settings" 
+        <NavLink
+          to="/admin/settings"
           className={({ isActive }) => isActive ? 'tab active' : 'tab'}
         >
           <Settings2 size={16} /> Settings
@@ -68,6 +75,7 @@ const AdminDashboard = () => {
           <Route path="default-menu" element={<DefaultMenuManager />} />
           <Route path="staples" element={<DefaultMenuManager />} />
           <Route path="reports" element={<ReportsDashboard />} />
+          <Route path="meal-participation" element={<MealParticipationReport />} />
           <Route path="announcements" element={<FestivalAnnouncements />} />
           <Route path="settings" element={<AdminSettings />} />
         </Routes>
