@@ -3,8 +3,9 @@ import { getAuth } from 'firebase/auth';
 import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from 'firebase/firestore';
 import { getFunctions } from 'firebase/functions';
 import { getAnalytics } from 'firebase/analytics';
+import { getMessaging, isSupported } from 'firebase/messaging';
 
-const firebaseConfig = {
+export const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
   authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
   projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
@@ -16,6 +17,7 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 
+export { app };
 export const auth = getAuth(app);
 export const db = initializeFirestore(app, {
   localCache: persistentLocalCache({
@@ -24,3 +26,23 @@ export const db = initializeFirestore(app, {
 });
 export const functions = getFunctions(app);
 export const analytics = typeof window !== 'undefined' && firebaseConfig.projectId ? getAnalytics(app) : null;
+
+let messagingPromise = null;
+
+/**
+ * Lazily resolves Firebase Messaging if supported by the current browser.
+ */
+export const getMessagingInstance = async () => {
+  if (typeof window === 'undefined') return null;
+
+  if (!messagingPromise) {
+    messagingPromise = isSupported()
+      .then((supported) => (supported ? getMessaging(app) : null))
+      .catch((err) => {
+        console.warn('Firebase Messaging is not supported in this environment:', err);
+        return null;
+      });
+  }
+
+  return messagingPromise;
+};

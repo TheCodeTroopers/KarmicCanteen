@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '../../firebase/config';
+import { sendAdminEventNotification } from '../../utils/adminApi';
 import { Settings2, Calendar, Lightbulb, CheckCircle2, AlertTriangle, AlarmClock } from 'lucide-react';
 import './AdminSettings.css';
 
@@ -49,6 +50,12 @@ const AdminSettings = () => {
       });
 
       showMessage('success', 'Deadline time updated successfully!');
+      sendAdminEventNotification({
+        type: 'deadline_updated',
+        timeLabel: formatTime(deadlineHour, deadlineMinute)
+      }).catch((err) => {
+        console.warn('Deadline update push skipped:', err?.message || err);
+      });
     } catch (error) {
       console.error('Error saving settings:', error);
       showMessage('error', 'Failed to save settings. Please try again.');

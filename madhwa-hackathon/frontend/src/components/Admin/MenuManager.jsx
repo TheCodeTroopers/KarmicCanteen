@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { doc, setDoc, getDoc, collection, getDocs, deleteDoc, writeBatch } from 'firebase/firestore';
 import { db } from '../../firebase/config';
+import { sendAdminEventNotification } from '../../utils/adminApi';
 import { getLocalDateString, parseLocalDate, isSundayDate, resolveDefaultMenuForDate, WEEKDAY_LABELS, getWeekdayKey } from '../../utils/dateUtils';
 import { Calendar, ClipboardList, Coffee, Soup, Cookie, ChefHat, History, CheckCircle2, AlertTriangle, Info, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import './MenuManager.css';
@@ -286,6 +287,14 @@ const MenuManager = () => {
         `Menu saved successfully for ${formatDate(selectedDate)}!`
       );
 
+      sendAdminEventNotification({
+        type: 'menu_published',
+        date: selectedDate,
+        dateLabel: formatDate(selectedDate)
+      }).catch((err) => {
+        console.warn('Menu published push skipped:', err?.message || err);
+      });
+
       await fetchExistingMenus();
     } catch (error) {
       console.error('Error saving menu:', error);
@@ -305,6 +314,13 @@ const MenuManager = () => {
       await deleteDoc(menuRef);
 
       showMessage('success', 'Menu deleted successfully');
+      sendAdminEventNotification({
+        type: 'menu_deleted',
+        date,
+        dateLabel: formatDate(date)
+      }).catch((err) => {
+        console.warn('Menu deleted push skipped:', err?.message || err);
+      });
       fetchExistingMenus();
 
       if (date === selectedDate) {

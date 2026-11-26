@@ -123,3 +123,45 @@ Ensure `python-dotenv` is included in `requirements.txt`.
 2. Obtain the account's Firebase Authentication UID.
 3. Create a corresponding document in the Firestore `users` collection.
 4. Use
+
+## Recent Changes & Improvements
+
+### Code Quality
+- Fixed trailing whitespace warnings in `frontend/src/components/Admin/MenuManager.css` (lines 559, 573, 578, 582) to ensure a clean Git diff.
+
+### UI/UX & Responsiveness
+Implemented a comprehensive set of UI fixes across the application:
+
+#### Phase A – Critical Layout Issues
+- Resolved horizontal overflow in Admin Menu Manager.
+- Fixed overflow and responsiveness of Bulk Upload result summary and preview table.
+- Removed full‑width row hover scaling that caused layout jitter.
+
+#### Phase B – Mobile Usability
+- Increased global button touch targets for better tapability.
+- Fixed clipping issues on Login and Forgot Password pages.
+- Improved date controls and meal item chips on Employee Dashboard.
+- Adjusted spacing in Weekly Meal Selector.
+- Expanded touch area for Delete button in Default Menu.
+- Aligned My Orders modal footer correctly on small screens.
+
+#### Phase C – Tablet & Dashboard Layouts
+- Optimized Super Admin sidebar for tablet widths.
+- Corrected toolbar layout in Employee Management.
+- Enabled horizontal scrolling for Admin Management tables.
+- Fixed pagination controls on Reports Dashboard.
+- Made Analytics Dashboard header responsive.
+- Refined navbar and role badge responsiveness.
+
+#### Phase D – Modal & General Polish
+- Reduced modal padding on small screens.
+- Fixed overlap of PWA toast and install banner.
+- Improved styling of Festival Announcements and Admin Settings.
+- Reviewed remaining pages and shared components for residual issues.
+
+All changes preserve the existing visual identity, colors, and functionality.
+
+### Testing & Verification
+- Ran ESLint and production build without errors.
+- Manually tested the application at viewport widths 320 px, 375 px, 425 px, 768 px, 1024 px, 1440 px.
+- Verified that no new layout regressions were introduced and that all responsive fixes behave as expected.

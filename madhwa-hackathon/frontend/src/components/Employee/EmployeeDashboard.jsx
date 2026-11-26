@@ -10,6 +10,7 @@ import {
   Info, CheckCircle2, AlertTriangle, Utensils, Check, ClipboardCheck, ClipboardList
 } from 'lucide-react';
 import notificationService from '../../utils/notificationService';
+import { sendEmployeeTestNotification, sendEmployeeEventNotification } from '../../utils/adminApi';
 import WeeklyMealSelector from './WeeklyMealSelector';
 import MonthlyMealCalendar from './MonthlyMealCalendar';
 import EmployeeAnnouncements from './EmployeeAnnouncements';
@@ -56,9 +57,14 @@ const EmployeeDashboard = () => {
   const [message, setMessage] = useState({ type: '', text: '' });
   const [deadlineHour, setDeadlineHour] = useState(21);
   const [deadlineMinute, setDeadlineMinute] = useState(0);
-  const [notificationPermission, setNotificationPermission] = useState('default');
+  const [notificationPermission, setNotificationPermission] = useState(
+    notificationService.isSupported() ? Notification.permission : 'unsupported'
+  );
+  const [fcmRegistered, setFcmRegistered] = useState(false);
+  const [enablingNotifications, setEnablingNotifications] = useState(false);
   const [showNotificationBanner, setShowNotificationBanner] = useState(false);
   const [reminderScheduled, setReminderScheduled] = useState(false);
+  const [testLoading, setTestLoading] = useState(false);
   const [showSuccessPopup, setShowSuccessPopup] = useState(false);
   const [showDeadlineWarning, setShowDeadlineWarning] = useState(false);
   const [warningShown, setWarningShown] = useState(false);
@@ -119,6 +125,11 @@ const EmployeeDashboard = () => {
   useEffect(() => {
     if (currentUser) {
       loadUserSelections();
+      if (notificationService.isSupported() && Notification.permission === 'granted') {
+        notificationService.registerFcmToken().then((token) => {
+          setFcmRegistered(Boolean(token));
+        });
+      }
     }
   }, [currentUser]);
 
@@ -126,7 +137,6 @@ const EmployeeDashboard = () => {
     checkDeadline();
 
     const timer = setInterval(() => {
-      const now = new Date();
       checkDeadline();
 
       const nextTomorrow = new Date();
@@ -192,6 +202,25 @@ const EmployeeDashboard = () => {
     if (currentMinutes >= tenMinutesBeforeDeadline && currentMinutes < deadlineMinutes && !warningShown && !deadlinePassed) {
       setShowDeadlineWarning(true);
       setWarningShown(true);
+
+      const tomorrow = getTomorrowDate();
+      const notifiedKey = `karmic_deadline_notified_${tomorrow}`;
+      if (typeof window !== 'undefined' && !localStorage.getItem(notifiedKey)) {
+        localStorage.setItem(notifiedKey, '1');
+        const timeRemaining = getTimeUntilDeadline();
+        if (notificationService.isSupported() && Notification.permission === 'granted') {
+          notificationService.showDeadlineWarning(timeRemaining);
+        }
+        if (currentUser) {
+          sendEmployeeEventNotification({
+            type: 'deadline_reminder',
+            date: tomorrow,
+            timeRemaining
+          }).catch((err) => {
+            console.warn('Deadline reminder push skipped:', err?.message || err);
+          });
+        }
+      }
     }
   };
 
@@ -376,6 +405,8 @@ const EmployeeDashboard = () => {
   const initializeNotifications = async () => {
     if (!notificationService.isSupported()) {
       console.log('Notifications not supported in this browser');
+      setNotificationPermission('unsupported');
+      setFcmRegistered(false);
       return;
     }
 
@@ -388,19 +419,72 @@ const EmployeeDashboard = () => {
 
     if (currentPermission === 'granted') {
       scheduleMorningReminder();
+      const token = await notificationService.registerFcmToken();
+      setFcmRegistered(Boolean(token));
     }
   };
 
-  const requestNotificationPermission = async () => {
-    const granted = await notificationService.requestPermission();
-    setNotificationPermission(Notification.permission);
+  useEffect(() => {
+    if (notificationPermission !== 'granted') return undefined;
 
-    if (granted) {
-      setShowNotificationBanner(false);
-      scheduleMorningReminder();
-      showMessage('success', 'Reminders enabled successfully!');
-    } else {
-      showMessage('error', 'Notification permission denied. You can enable it in browser settings.');
+    let unsubscribe = () => {};
+    let active = true;
+
+    notificationService
+      .onForegroundMessage((payload) => {
+        if (!active) return;
+        const title = payload?.notification?.title || payload?.data?.title || 'Karmic Canteen';
+        const body = payload?.notification?.body || payload?.data?.body || '';
+        notificationService.showNotification(title, {
+          body,
+          icon: '/icons/pwa-192x192.png',
+          tag: payload?.data?.tag || payload?.messageId || undefined,
+        });
+        if (body) {
+          showMessage('info', `${title}: ${body}`);
+        }
+      })
+      .then((unsub) => {
+        if (active) {
+          unsubscribe = unsub;
+        } else {
+          unsub();
+        }
+      });
+
+    return () => {
+      active = false;
+      unsubscribe();
+    };
+  }, [notificationPermission]);
+
+  const requestNotificationPermission = async () => {
+    if (!notificationService.isSupported()) {
+      showMessage('error', 'Push notifications are not supported in this browser.');
+      return;
+    }
+
+    setEnablingNotifications(true);
+    try {
+      const granted = await notificationService.requestPermission();
+      setNotificationPermission(Notification.permission);
+
+      if (granted) {
+        setShowNotificationBanner(false);
+        scheduleMorningReminder();
+        const token = await notificationService.registerFcmToken();
+        setFcmRegistered(Boolean(token));
+        if (token) {
+          showMessage('success', 'Notifications enabled and device registered for push updates!');
+        } else {
+          showMessage('error', 'Notification permission granted, but FCM token registration failed.');
+        }
+      } else {
+        setFcmRegistered(false);
+        showMessage('error', 'Notification permission denied. You can enable it in browser settings.');
+      }
+    } finally {
+      setEnablingNotifications(false);
     }
   };
 
@@ -414,6 +498,39 @@ const EmployeeDashboard = () => {
 
     setReminderScheduled(true);
     console.log('Morning reminder scheduled for 8:00 AM daily');
+  };
+
+  // Send a test push notification to the logged-in employee's registered devices
+  const handleSendTest = async () => {
+    if (!currentUser) {
+      showMessage('error', 'User not authenticated.');
+      return;
+    }
+    setTestLoading(true);
+    try {
+      const result = await sendEmployeeTestNotification({
+        title: 'Test Notification',
+        body: 'This is a test push notification from Karmic Canteen.',
+      });
+      const stats = result?.data || result || {};
+      const sentCount = stats.sentCount ?? 0;
+      const failureCount = stats.failureCount ?? 0;
+
+      if (sentCount === 0 && failureCount === 0) {
+        showMessage('error', 'No registered FCM tokens found for your account. Click Enable Notifications first.');
+      } else if (failureCount > 0 && sentCount === 0) {
+        showMessage('error', `Test notification failed (${failureCount} failed).`);
+      } else if (failureCount > 0) {
+        showMessage('success', `Test notification sent to ${sentCount} device(s) (${failureCount} failed).`);
+      } else {
+        showMessage('success', `Test notification sent successfully to ${sentCount} device(s)!`);
+      }
+    } catch (error) {
+      console.error('Error sending test notification:', error);
+      showMessage('error', error?.message || 'Failed to send test notification.');
+    } finally {
+      setTestLoading(false);
+    }
   };
 
   const showConfirmationNotification = () => {
@@ -498,6 +615,17 @@ const EmployeeDashboard = () => {
       showMessage('success', 'Meal preferences saved successfully!');
       setShowSuccessPopup(true);
       showConfirmationNotification();
+
+      const selectedMealLabels = MEAL_TYPES
+        .filter(({ key }) => updatedSelections[key])
+        .map(({ label }) => label);
+      sendEmployeeEventNotification({
+        type: 'meal_submitted',
+        date: tomorrow,
+        meals: selectedMealLabels
+      }).catch((err) => {
+        console.warn('Meal submission push skipped:', err?.message || err);
+      });
 
     } catch (error) {
       console.error('Error saving meal preferences:', error);
@@ -648,6 +776,63 @@ const EmployeeDashboard = () => {
       )}
 
       <EmployeeAnnouncements />
+
+      <section className="push-notification-card" aria-label="Push Notification Testing">
+        <div className="push-notification-info">
+          <div className="push-notification-title">
+            <Bell size={18} style={{ color: 'var(--accent-primary)' }} />
+            <span>Push Notification Testing</span>
+          </div>
+          <div className="push-notification-statuses">
+            <span>
+              Permission:{' '}
+              <span
+                className={`push-status-badge ${
+                  notificationPermission === 'granted'
+                    ? 'active'
+                    : notificationPermission === 'denied' || notificationPermission === 'unsupported'
+                    ? 'denied'
+                    : ''
+                }`}
+              >
+                {notificationPermission === 'granted'
+                  ? 'Granted'
+                  : notificationPermission === 'denied'
+                  ? 'Denied'
+                  : notificationPermission === 'unsupported'
+                  ? 'Unsupported'
+                  : 'Default'}
+              </span>
+            </span>
+            <span>
+              FCM Status:{' '}
+              <span className={`push-status-badge ${fcmRegistered ? 'active' : ''}`}>
+                {fcmRegistered ? 'Registered' : 'Not Registered'}
+              </span>
+            </span>
+          </div>
+        </div>
+        <div className="push-notification-actions">
+          <button
+            className="btn btn-secondary btn-sm"
+            onClick={requestNotificationPermission}
+            disabled={enablingNotifications || notificationPermission === 'unsupported'}
+          >
+            {enablingNotifications
+              ? 'Enabling...'
+              : notificationPermission === 'granted' && fcmRegistered
+              ? 'Refresh Registration'
+              : 'Enable Notifications'}
+          </button>
+          <button
+            className="btn btn-primary btn-sm"
+            onClick={handleSendTest}
+            disabled={testLoading || notificationPermission !== 'granted' || !fcmRegistered}
+          >
+            {testLoading ? 'Sending...' : 'Send Test Notification'}
+          </button>
+        </div>
+      </section>
 
       {message.text && (
         <div className={`message ${message.type}`}>

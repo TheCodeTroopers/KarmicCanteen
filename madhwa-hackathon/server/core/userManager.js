@@ -59,7 +59,338 @@ async function sendFirebasePasswordResetEmail(email) {
   return { success: true };
 }
 
-// Ensure Firebase Admin is initialized once with environment credentials
+
+/**
+ * Helper to verify that the caller is an admin or super admin.
+ * Returns the caller UID and email on success.
+ */
+const ADMIN_ROLES = ['admin', 'super_admin'];
+async function assertAdmin(idToken) {
+  if (!idToken || typeof idToken !== 'string') {
+    throw new AppError(401, 'unauthenticated', 'You must be signed in with a valid ID token.');
+  }
+
+  let decodedToken;
+  try {
+    decodedToken = await admin.auth().verifyIdToken(idToken);
+  } catch (err) {
+    console.error('ID Token verification failed:', err.message);
+    throw new AppError(401, 'unauthenticated', 'Invalid or expired authentication token.');
+  }
+
+  const uid = decodedToken.uid;
+  const doc = await admin.firestore().collection('users').doc(uid).get();
+  const role = doc.get('role');
+  if (!doc.exists || !ADMIN_ROLES.includes(role)) {
+    throw new AppError(403, 'permission-denied', 'Only admins can perform this action.');
+  }
+  return { uid, email: decodedToken.email || doc.get('email') };
+}
+
+/**
+ * Helper to verify that the caller is an authenticated employee.
+ * Returns the caller UID and email on success.
+ */
+async function assertEmployee(idToken) {
+  if (!idToken || typeof idToken !== 'string') {
+    throw new AppError(401, 'unauthenticated', 'You must be signed in with a valid ID token.');
+  }
+
+  let decodedToken;
+  try {
+    decodedToken = await admin.auth().verifyIdToken(idToken);
+  } catch (err) {
+    console.error('ID Token verification failed:', err.message);
+    throw new AppError(401, 'unauthenticated', 'Invalid or expired authentication token.');
+  }
+
+  const uid = decodedToken.uid;
+  const doc = await admin.firestore().collection('users').doc(uid).get();
+  const role = doc.get('role');
+  if (!doc.exists || (role !== 'employee' && role !== 'student')) {
+    throw new AppError(403, 'permission-denied', 'Only employees can perform this action.');
+  }
+  return {
+    uid,
+    email: decodedToken.email || doc.get('email'),
+    name: doc.get('name') || decodedToken.name || decodedToken.email || 'Employee'
+  };
+}
+
+// Short-window event deduplication to prevent duplicate notifications
+const recentNotificationEvents = new Map();
+function isDuplicateEvent(key, windowMs = 10000) {
+  if (!key) return false;
+  const now = Date.now();
+  const last = recentNotificationEvents.get(key);
+  if (last && now - last < windowMs) {
+    return true;
+  }
+  recentNotificationEvents.set(key, now);
+  if (recentNotificationEvents.size > 500) {
+    for (const [k, ts] of recentNotificationEvents.entries()) {
+      if (now - ts >= windowMs) recentNotificationEvents.delete(k);
+    }
+  }
+  return false;
+}
+
+/**
+ * Shared FCM multicast sender with batching and invalid-token cleanup.
+ */
+async function sendFcmToTokenDocs(tokenDocs, { title, body, data = {} }) {
+  if (!tokenDocs || tokenDocs.length === 0) {
+    return { sentCount: 0, failureCount: 0, cleanedCount: 0 };
+  }
+
+  let sentCount = 0;
+  let failureCount = 0;
+  let cleanedCount = 0;
+  const BATCH_SIZE = 500;
+
+  // Ensure all data values are strings as required by FCM
+  const stringData = {};
+  Object.entries(data || {}).forEach(([k, v]) => {
+    if (v !== undefined && v !== null) {
+      stringData[k] = String(v);
+    }
+  });
+
+  for (let i = 0; i < tokenDocs.length; i += BATCH_SIZE) {
+    const batchDocs = tokenDocs.slice(i, i + BATCH_SIZE);
+    const batchTokens = batchDocs.map((d) => d.token);
+
+    const response = await admin.messaging().sendEachForMulticast({
+      tokens: batchTokens,
+      notification: { title, body },
+      data: stringData
+    });
+
+    sentCount += response.successCount;
+    failureCount += response.failureCount;
+
+    const batch = admin.firestore().batch();
+    let hasDeletions = false;
+    response.responses.forEach((resp, idx) => {
+      if (!resp.success) {
+        const errCode = resp.error?.code;
+        if (
+          errCode === 'messaging/registration-token-not-registered' ||
+          errCode === 'messaging/invalid-registration-token'
+        ) {
+          batch.delete(batchDocs[idx].ref);
+          cleanedCount++;
+          hasDeletions = true;
+        }
+      }
+    });
+    if (hasDeletions) {
+      await batch.commit();
+    }
+  }
+
+  return { sentCount, failureCount, cleanedCount };
+}
+
+/**
+ * Collects unique FCM token docs for a list of user UIDs and sends a notification.
+ */
+async function sendNotificationToUsers(uids, message) {
+  const uniqueUids = [...new Set((uids || []).filter(Boolean))];
+  if (uniqueUids.length === 0) {
+    return { sentCount: 0, failureCount: 0, cleanedCount: 0 };
+  }
+
+  const tokenDocs = [];
+  const seenTokens = new Set();
+
+  await Promise.all(
+    uniqueUids.map(async (uid) => {
+      const snap = await admin.firestore()
+        .collection('users')
+        .doc(uid)
+        .collection('fcmTokens')
+        .get();
+
+      snap.forEach((doc) => {
+        const token = doc.get('token');
+        if (typeof token === 'string' && token && !seenTokens.has(token)) {
+          seenTokens.add(token);
+          tokenDocs.push({ ref: doc.ref, token });
+        }
+      });
+    })
+  );
+
+  return sendFcmToTokenDocs(tokenDocs, message);
+}
+
+/**
+ * Queries Firestore `users` for UIDs matching any of the provided roles.
+ */
+async function getUserUidsByRoles(roles) {
+  const snap = await admin.firestore()
+    .collection('users')
+    .where('role', 'in', roles)
+    .get();
+  return snap.docs.map((d) => d.id);
+}
+
+/**
+ * Core logic for sending a test FCM push notification.
+ * Returns { sentCount, failureCount, cleanedCount }.
+ */
+async function sendTestNotificationCore(requesterUid, payload = {}) {
+  const targetUid = typeof payload.targetUid === 'string' && payload.targetUid.trim() !== ''
+    ? payload.targetUid.trim()
+    : requesterUid;
+  const title = typeof payload.title === 'string' && payload.title.trim() !== ''
+    ? payload.title.trim().substring(0, 100)
+    : 'Test Notification';
+  const body = typeof payload.body === 'string' && payload.body.trim() !== ''
+    ? payload.body.trim().substring(0, 500)
+    : 'This is a test.';
+
+  return sendNotificationToUsers([targetUid], {
+    title,
+    body,
+    data: { tag: `test-${targetUid}` }
+  });
+}
+
+/**
+ * Handles employee-triggered notification events:
+ *  - 'meal_submitted': confirms to the employee and notifies admins
+ *  - 'deadline_reminder': notifies the employee about upcoming deadline
+ */
+async function sendEmployeeEventNotificationCore(caller, payload = {}) {
+  const type = typeof payload.type === 'string' ? payload.type.trim() : '';
+  const date = typeof payload.date === 'string' ? payload.date.trim() : '';
+
+  if (type === 'meal_submitted') {
+    const dedupKey = `meal_submitted:${caller.uid}:${date}:${JSON.stringify(payload.meals || [])}`;
+    if (isDuplicateEvent(dedupKey, 5000)) {
+      return { deduplicated: true, sentCount: 0, failureCount: 0, cleanedCount: 0 };
+    }
+
+    const mealsList = Array.isArray(payload.meals) && payload.meals.length > 0
+      ? payload.meals.join(', ')
+      : 'your selected meals';
+
+    const employeeResult = await sendNotificationToUsers([caller.uid], {
+      title: 'Meal Selection Submitted',
+      body: `Your meal selection for ${date || 'tomorrow'} (${mealsList}) has been saved.`,
+      data: { type: 'meal_submitted', date, tag: `meal-submitted-${caller.uid}-${date}` }
+    });
+
+    const adminUids = await getUserUidsByRoles(['admin', 'super_admin']);
+    const adminResult = await sendNotificationToUsers(adminUids, {
+      title: 'New Meal Selection',
+      body: `${caller.name || caller.email} submitted meal preferences for ${date || 'tomorrow'}.`,
+      data: { type: 'admin_meal_submitted', date, employeeUid: caller.uid, tag: `admin-meal-${caller.uid}-${date}` }
+    });
+
+    return {
+      sentCount: employeeResult.sentCount + adminResult.sentCount,
+      failureCount: employeeResult.failureCount + adminResult.failureCount,
+      cleanedCount: employeeResult.cleanedCount + adminResult.cleanedCount
+    };
+  }
+
+  if (type === 'deadline_reminder') {
+    const dedupKey = `deadline_reminder:${caller.uid}:${date}`;
+    if (isDuplicateEvent(dedupKey, 60000)) {
+      return { deduplicated: true, sentCount: 0, failureCount: 0, cleanedCount: 0 };
+    }
+
+    const timeRemaining = typeof payload.timeRemaining === 'string' && payload.timeRemaining.trim()
+      ? payload.timeRemaining.trim()
+      : 'soon';
+
+    return sendNotificationToUsers([caller.uid], {
+      title: 'Meal Selection Deadline Approaching',
+      body: `Deadline is in ${timeRemaining}. Complete your meal selection for ${date || 'tomorrow'} before it closes.`,
+      data: { type: 'deadline_reminder', date, tag: `deadline-reminder-${caller.uid}-${date}` }
+    });
+  }
+
+  throw new AppError(400, 'invalid-argument', 'Unsupported employee notification event type.');
+}
+
+/**
+ * Handles admin-triggered notification events:
+ *  - 'menu_published': notifies all employees + admins
+ *  - 'menu_deleted': notifies admins
+ *  - 'deadline_updated': notifies admins
+ */
+async function sendAdminEventNotificationCore(caller, payload = {}) {
+  const type = typeof payload.type === 'string' ? payload.type.trim() : '';
+  const date = typeof payload.date === 'string' ? payload.date.trim() : '';
+  const dateLabel = typeof payload.dateLabel === 'string' && payload.dateLabel.trim()
+    ? payload.dateLabel.trim()
+    : date;
+
+  if (type === 'menu_published') {
+    const dedupKey = `menu_published:${date}`;
+    if (isDuplicateEvent(dedupKey, 10000)) {
+      return { deduplicated: true, sentCount: 0, failureCount: 0, cleanedCount: 0 };
+    }
+
+    const employeeUids = await getUserUidsByRoles(['employee', 'student']);
+    const employeeResult = await sendNotificationToUsers(employeeUids, {
+      title: 'New Meal Menu Published',
+      body: `The menu for ${dateLabel || 'upcoming meals'} is now available. Submit your meal selection before the deadline!`,
+      data: { type: 'menu_published', date, tag: `menu-published-${date}` }
+    });
+
+    const adminUids = (await getUserUidsByRoles(['admin', 'super_admin'])).filter(
+      (id) => id !== caller.uid
+    );
+    const adminResult = await sendNotificationToUsers(adminUids, {
+      title: 'Menu Published',
+      body: `${caller.email} published the meal menu for ${dateLabel || date}.`,
+      data: { type: 'admin_menu_published', date, tag: `admin-menu-published-${date}` }
+    });
+
+    return {
+      sentCount: employeeResult.sentCount + adminResult.sentCount,
+      failureCount: employeeResult.failureCount + adminResult.failureCount,
+      cleanedCount: employeeResult.cleanedCount + adminResult.cleanedCount
+    };
+  }
+
+  if (type === 'menu_deleted') {
+    const dedupKey = `menu_deleted:${date}`;
+    if (isDuplicateEvent(dedupKey, 10000)) {
+      return { deduplicated: true, sentCount: 0, failureCount: 0, cleanedCount: 0 };
+    }
+
+    const adminUids = await getUserUidsByRoles(['admin', 'super_admin']);
+    return sendNotificationToUsers(adminUids, {
+      title: 'Meal Menu Deleted',
+      body: `The meal menu for ${dateLabel || date} was deleted by ${caller.email}.`,
+      data: { type: 'menu_deleted', date, tag: `menu-deleted-${date}` }
+    });
+  }
+
+  if (type === 'deadline_updated') {
+    const timeLabel = typeof payload.timeLabel === 'string' ? payload.timeLabel.trim() : '';
+    const dedupKey = `deadline_updated:${timeLabel}`;
+    if (isDuplicateEvent(dedupKey, 10000)) {
+      return { deduplicated: true, sentCount: 0, failureCount: 0, cleanedCount: 0 };
+    }
+
+    const adminUids = await getUserUidsByRoles(['admin', 'super_admin']);
+    return sendNotificationToUsers(adminUids, {
+      title: 'Meal Deadline Updated',
+      body: `Daily meal selection deadline was updated to ${timeLabel || 'a new time'} by ${caller.email}.`,
+      data: { type: 'deadline_updated', tag: `deadline-updated-${timeLabel}` }
+    });
+  }
+
+  throw new AppError(400, 'invalid-argument', 'Unsupported admin notification event type.');
+}
+
 function initAdmin() {
   if (admin.apps.length > 0) {
     return admin.app();
@@ -651,6 +982,9 @@ module.exports = {
   bulkCreateUserAccountsCore,
   generateSecureRandomPassword,
   sendFirebasePasswordResetEmail,
-  ASSIGNABLE_ROLES,
-  SUPER_ADMIN_ROLE
+  sendTestNotificationCore,
+  sendEmployeeEventNotificationCore,
+  sendAdminEventNotificationCore,
+  assertAdmin,
+  assertEmployee,
 };

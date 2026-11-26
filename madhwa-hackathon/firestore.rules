@@ -103,6 +103,32 @@ service cloud.firestore {
         && timestamp.date(int(parts[0]), int(parts[1]), int(parts[2])).dayOfWeek() != 7;
     }
 
+    function isValidFcmToken(userId) {
+      let data = request.resource.data;
+      let allowedFields = [
+        'token',
+        'userId',
+        'platform',
+        'userAgent',
+        'createdAt',
+        'updatedAt'
+      ];
+
+      return data.keys().hasOnly(allowedFields)
+        && data.keys().hasAll(allowedFields)
+        && data.token is string
+        && data.token.size() > 0
+        && data.token.size() <= 4096
+        && data.userId is string
+        && data.userId == userId
+        && data.platform is string
+        && data.platform == 'web'
+        && data.userAgent is string
+        && data.userAgent.size() <= 512
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
 
     // =========================================================
     // USERS
@@ -126,6 +152,22 @@ service cloud.firestore {
 
       allow delete: if isSuperAdmin()
         && isAssignableRole(resource.data.role);
+
+      match /fcmTokens/{tokenId} {
+
+        allow read, delete: if isSignedIn()
+          && request.auth.uid == userId;
+
+        allow create: if isSignedIn()
+          && request.auth.uid == userId
+          && isValidFcmToken(userId);
+
+        allow update: if isSignedIn()
+          && request.auth.uid == userId
+          && isValidFcmToken(userId)
+          && request.resource.data.userId == resource.data.userId
+          && request.resource.data.createdAt == resource.data.createdAt;
+      }
     }
 
 

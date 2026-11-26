@@ -33,6 +33,8 @@ import {
   normalizeRole
 } from '../utils/roles';
 
+import notificationService from '../utils/notificationService';
+
 
 const AuthContext = createContext();
 
@@ -199,6 +201,18 @@ export const AuthProvider = ({ children }) => {
                   setUserRole(
                     normalizedRole
                   );
+
+                  if (
+                    (normalizedRole === ROLES.EMPLOYEE ||
+                      normalizedRole === ROLES.ADMIN ||
+                      normalizedRole === ROLES.SUPER_ADMIN) &&
+                    typeof Notification !== 'undefined' &&
+                    Notification.permission === 'granted'
+                  ) {
+                    notificationService.registerFcmToken().catch((err) => {
+                      console.warn('FCM token sync on login failed:', err);
+                    });
+                  }
 
                 } else {
 
@@ -515,6 +529,8 @@ export const AuthProvider = ({ children }) => {
     );
 
     try {
+
+      await notificationService.removeFcmToken();
 
       await signOut(auth);
 

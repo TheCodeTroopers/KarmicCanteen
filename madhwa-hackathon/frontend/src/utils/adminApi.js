@@ -159,6 +159,125 @@ export async function deleteUser(payload) {
  * @param {string} [payload.department]
  * @returns {Promise<{ success: boolean, message: string }>}
  */
+// ---------------------------------------------------
+// Send Test Push Notification (admin only)
+// ---------------------------------------------------
+export async function sendTestNotification(payload) {
+  // payload: { targetUid?, title?, body? }
+  const token = await getIdToken();
+  const baseUrl = getAdminApiBaseUrl();
+  const url = `${baseUrl}/api/admin/send-test-notification`;
+
+  let response;
+  try {
+    response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify(payload)
+    });
+  } catch {
+    if (import.meta.env.DEV) {
+      throw new Error(
+        'Could not reach the local admin server at localhost:5001. Please ensure the dev server is running (node server/devServer.js).'
+      );
+    }
+    throw new Error('Network error. Failed to communicate with the admin server.');
+  }
+
+  let data;
+  try {
+    data = await response.json();
+  } catch {
+    data = null;
+  }
+
+  if (!response.ok) {
+    const errorMsg = data?.error?.message || data?.message || `Request failed with status ${response.status}`;
+    const err = new Error(errorMsg);
+    err.code = data?.error?.code || data?.code || 'internal';
+    err.status = response.status;
+    throw err;
+  }
+
+  return data;
+}
+
+/**
+ * Shared helper to POST JSON to notification endpoints with Firebase ID token auth.
+ */
+async function postNotificationEndpoint(path, payload = {}) {
+  const token = await getIdToken();
+  const baseUrl = getAdminApiBaseUrl();
+  const url = `${baseUrl}${path}`;
+
+  let response;
+  try {
+    response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify(payload)
+    });
+  } catch {
+    if (import.meta.env.DEV) {
+      throw new Error(
+        'Could not reach the local server at localhost:5001. Please ensure the dev server is running (node server/devServer.js).'
+      );
+    }
+    throw new Error('Network error. Failed to communicate with the notification server.');
+  }
+
+  let data;
+  try {
+    data = await response.json();
+  } catch {
+    data = null;
+  }
+
+  if (!response.ok) {
+    const errorMsg = data?.error?.message || data?.message || `Request failed with status ${response.status}`;
+    const err = new Error(errorMsg);
+    err.code = data?.error?.code || data?.code || 'internal';
+    err.status = response.status;
+    throw err;
+  }
+
+  return data;
+}
+
+/**
+ * Sends a self-test push notification for an authenticated employee.
+ * The backend enforces targeting only the caller's own registered FCM tokens.
+ */
+export async function sendEmployeeTestNotification(payload = {}) {
+  return postNotificationEndpoint('/api/employee/send-test-notification', {
+    title: payload.title,
+    body: payload.body
+  });
+}
+
+/**
+ * Triggers an employee lifecycle notification event ('meal_submitted' or 'deadline_reminder').
+ */
+export async function sendEmployeeEventNotification(payload = {}) {
+  return postNotificationEndpoint('/api/notifications/employee-event', payload);
+}
+
+/**
+ * Triggers an admin lifecycle notification event ('menu_published', 'menu_deleted', 'deadline_updated').
+ */
+export async function sendAdminEventNotification(payload = {}) {
+  return postNotificationEndpoint('/api/notifications/admin-event', payload);
+}
+
+// ---------------------------------------------------
+// Update user (admin only)
+// ---------------------------------------------------
 export async function updateUser(payload) {
   const uid = payload?.uid;
   if (!uid) {
@@ -205,6 +324,7 @@ export async function updateUser(payload) {
 
   return data;
 }
+
 
 /**
  * Bulk-creates multiple employee accounts in a single request.
