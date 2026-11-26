@@ -1,4 +1,3 @@
-
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   CalendarDays,
@@ -66,6 +65,12 @@ const MealParticipationReport = () => {
   const [listFilter, setListFilter] = useState('opted');
 
   const [search, setSearch] = useState('');
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewTab, setPreviewTab] = useState('excel');
+  const [pdfUrl, setPdfUrl] = useState(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewError, setPreviewError] = useState(null);
+
 
   // --------------------------------------------------
   // 1. Listen to the employee directory in real time
@@ -110,7 +115,9 @@ const MealParticipationReport = () => {
       }
     );
 
-    return () => unsubscribe();
+
+
+  return () => unsubscribe();
   }, []);
 
   // --------------------------------------------------
@@ -150,7 +157,9 @@ const MealParticipationReport = () => {
       }
     );
 
-    return () => unsubscribe();
+
+
+  return () => unsubscribe();
   }, [selectedDate]);
 
   // --------------------------------------------------
@@ -320,9 +329,7 @@ const MealParticipationReport = () => {
     XLSX.writeFile(workbook, `meal-participation-${getFileDate()}.xlsx`);
   };
 
-  const downloadPdfReport = () => {
-    if (busy || employees.length === 0) return;
-
+  const buildPdfDocument = () => {
     const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
     const pageWidth = pdf.internal.pageSize.getWidth();
 
@@ -354,7 +361,7 @@ const MealParticipationReport = () => {
       headStyles: { fillColor: [48, 83, 145] }
     });
 
-    let nextY = pdf.lastAutoTable.finalY + 10;
+    const nextY = pdf.lastAutoTable.finalY + 10;
     pdf.setFontSize(12);
     pdf.text('Employee-wise Meal Selections', 14, nextY);
     autoTable(pdf, {
@@ -418,8 +425,74 @@ const MealParticipationReport = () => {
       });
     });
 
+    return pdf;
+  };
+
+  const downloadPdfReport = () => {
+    if (busy || employees.length === 0) return;
+    const pdf = buildPdfDocument();
     pdf.save(`meal-participation-${getFileDate()}.pdf`);
   };
+
+  const closePreview = () => {
+    setPreviewOpen(false);
+    setPreviewError(null);
+    setPdfUrl((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return null;
+    });
+  };
+
+  useEffect(() => {
+    if (!previewOpen || previewTab !== 'pdf') {
+      setPreviewLoading(false);
+      setPreviewError(null);
+      setPdfUrl((prev) => {
+        if (prev) URL.revokeObjectURL(prev);
+        return null;
+      });
+      return;
+    }
+
+    let cancelled = false;
+    let objectUrl = null;
+
+    const generate = async () => {
+      try {
+        setPreviewLoading(true);
+        setPreviewError(null);
+        const pdf = buildPdfDocument();
+        const blob = pdf.output('blob');
+        objectUrl = URL.createObjectURL(blob);
+        if (!cancelled) {
+          setPdfUrl((prev) => {
+            if (prev) URL.revokeObjectURL(prev);
+            return objectUrl;
+          });
+        } else {
+          URL.revokeObjectURL(objectUrl);
+        }
+      } catch (err) {
+        console.error('PDF preview generation failed', err);
+        if (!cancelled) {
+          setPreviewError('Failed to generate PDF preview.');
+        }
+      } finally {
+        if (!cancelled) {
+          setPreviewLoading(false);
+        }
+      }
+    };
+
+    generate();
+
+    return () => {
+      cancelled = true;
+      if (objectUrl) {
+        URL.revokeObjectURL(objectUrl);
+      }
+    };
+  }, [previewOpen, previewTab, selectedDate, employees, mealCounts, selectionsByUser]);
 
   // --------------------------------------------------
   // UI
@@ -442,20 +515,32 @@ const MealParticipationReport = () => {
         <div className="mpr-export-actions">
           <button
             type="button"
-            className="mpr-export-button mpr-export-excel"
+            className="mpr-export-button mpr-preview"
+            onClick={() => setPreviewOpen(true)}
+            disabled={busy || employees.length === 0}
+            title="Preview the report before downloading"
+          >
+            <FileText size={16} />
+            Preview Report
+          </button>
+
+          <button
+            type="button"
+            className="mpr-export-button"
             onClick={downloadExcelReport}
             disabled={busy || employees.length === 0}
-            title="Download the complete report as an Excel workbook"
+            title="Download Excel report"
           >
             <FileSpreadsheet size={16} />
             Download Excel
           </button>
+
           <button
             type="button"
-            className="mpr-export-button mpr-export-pdf"
+            className="mpr-export-button"
             onClick={downloadPdfReport}
             disabled={busy || employees.length === 0}
-            title="Download the complete report as a PDF"
+            title="Download PDF report"
           >
             <FileText size={16} />
             Download PDF
@@ -477,7 +562,126 @@ const MealParticipationReport = () => {
         </label>
       </div>
 
-      {error && (
+      {previewOpen && (
+  <div className="mpr-preview-modal-overlay" onClick={closePreview}>
+    <div className="mpr-preview-modal-card" onClick={e => e.stopPropagation()} role="dialog" aria-modal="true">
+      <div className="mpr-preview-header">
+        <h3>Report Preview</h3>
+          <div className="mpr-preview-tabs">
+            <button
+              type="button"
+              className={previewTab === 'excel' ? 'active' : ''}
+              onClick={() => setPreviewTab('excel')}
+            >
+              Excel Preview
+            </button>
+            <button
+              type="button"
+              className={previewTab === 'pdf' ? 'active' : ''}
+              onClick={() => setPreviewTab('pdf')}
+            >
+              PDF Preview
+            </button>
+          </div>
+        <button
+          type="button"
+          className="mpr-close-button"
+          onClick={closePreview}
+          aria-label="Close preview"
+        >
+          ×
+        </button>
+      </div>
+
+      <div className="mpr-preview-content">
+        {previewTab === 'excel' && (
+          <>
+            <p className="mpr-preview-meta">
+              <strong>Meal date:</strong> {selectedDate} &nbsp;|&nbsp;{' '}
+              <strong>Total employees:</strong> {employees.length}
+            </p>
+            <h4>Summary</h4>
+            <table className="mpr-preview-table">
+              <thead>
+                <tr>
+                  <th>Meal</th>
+                  <th>Opted in</th>
+                  <th>Not opted in</th>
+                  <th>Not submitted</th>
+                </tr>
+              </thead>
+              <tbody>
+                {MEALS.map((meal) => {
+                  const opted = mealCounts[meal.key]?.opted || [];
+                  const notOpted = mealCounts[meal.key]?.notOpted || [];
+                  const notSubmitted = notOpted.filter((e) => !selectionsByUser[e.uid]).length;
+                  return (
+                    <tr key={meal.key}>
+                      <td>{meal.label}</td>
+                      <td>{opted.length}</td>
+                      <td>{notOpted.length}</td>
+                      <td>{notSubmitted}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+            <h4>Employee-wise</h4>
+            <table className="mpr-preview-table">
+              <thead>
+                <tr>
+                  <th>Employee</th>
+                  <th>Employee ID</th>
+                  <th>Department</th>
+                  {MEALS.map((meal) => (
+                    <th key={meal.key}>{meal.label}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {employees.map((employee) => (
+                  <tr key={employee.uid}>
+                    <td>{getEmployeeName(employee)}</td>
+                    <td>{employee.employeeId || ''}</td>
+                    <td>{employee.department || ''}</td>
+                    {MEALS.map((meal) => (
+                      <td key={meal.key}>{getEmployeeMealStatus(employee, meal).status}</td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+
+          </>
+        )}
+        {previewTab === 'pdf' && (
+          previewLoading ? (
+            <p className="mpr-preview-status">Generating PDF preview…</p>
+          ) : previewError ? (
+            <p className="mpr-error">{previewError}</p>
+          ) : pdfUrl ? (
+            <iframe
+              className="mpr-preview-pdf"
+              src={pdfUrl}
+              title="Meal Participation PDF Preview"
+            />
+          ) : null
+        )}
+      </div>
+
+      <div className="mpr-preview-footer">
+        <button
+          type="button"
+          className="mpr-export-button"
+          onClick={closePreview}
+        >
+          Close
+        </button>
+      </div>
+    </div>
+  </div>
+)}
+{error && (
         <div className="mpr-error" role="alert">
           {error}
         </div>
@@ -492,7 +696,9 @@ const MealParticipationReport = () => {
             notOpted: []
           };
 
-          return (
+      
+
+  return (
             <button
               type="button"
               key={meal.key}
@@ -580,7 +786,9 @@ const MealParticipationReport = () => {
                   const employeeSelection =
                     selectionsByUser[employee.uid];
 
-                  return (
+              
+
+  return (
                     <tr key={employee.uid}>
 
                       <td>
@@ -618,7 +826,9 @@ const MealParticipationReport = () => {
                           employeeSelection?.[meal.key]
                         );
 
-                        return (
+                    
+
+  return (
                           <td key={meal.key}>
 
                             <span
@@ -749,7 +959,9 @@ const MealParticipationReport = () => {
                     selectionsByUser[employee.uid]
                   );
 
-                  return (
+              
+
+  return (
                     <tr key={employee.uid}>
 
                       <td>
