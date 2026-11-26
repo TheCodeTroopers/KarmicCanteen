@@ -1,11 +1,12 @@
 // src/components/Employee/MonthlyDateDetailPanel.jsx
 import React, { useState, useEffect, useMemo } from 'react';
 import { doc, setDoc } from 'firebase/firestore';
-import { httpsCallable } from 'firebase/functions';
-import { db, functions } from '../../firebase/config';
+import { db } from '../../firebase/config';
 import { useAuth } from '../../context/AuthContext';
 import { cacheDocument, docCacheKey } from '../../utils/indexedDbCache';
 import { getLocalDateString, isSundayDate } from '../../utils/dateUtils';
+import notificationService from '../../utils/notificationService';
+import { sendEmployeeEventNotification } from '../../utils/adminApi';
 import {
   MEAL_KEYS,
   createEmptyMealItemsMap,
@@ -381,6 +382,21 @@ const MonthlyDateDetailPanel = ({
       );
 
       showMessage('success', 'Meal preferences saved successfully!');
+      if (notificationService.isSupported() && Notification.permission === 'granted') {
+        notificationService.showConfirmationNotification(confirmedItems);
+      }
+
+      const selectedMealLabels = MEAL_CONFIG
+        .filter(({ key }) => (confirmedItems[key]?.length || 0) > 0)
+        .map(({ label }) => label);
+      sendEmployeeEventNotification({
+        type: 'meal_submitted',
+        date: dateStr,
+        meals: selectedMealLabels
+      }).catch((err) => {
+        console.warn('[MonthlyDateDetailPanel] Meal submission push skipped:', err?.message || err);
+      });
+
       if (onBookingUpdated) {
         onBookingUpdated(dateStr, payload);
       }
@@ -409,15 +425,14 @@ const MonthlyDateDetailPanel = ({
     try {
       setCancelling(true);
 
-      // Invoke the secure callable Cloud Function (UID is determined server-side from auth token)
-      const cancelMealBooking = httpsCallable(functions, 'cancelBooking');
-      const result = await cancelMealBooking({ date: dateStr });
-
       const now = new Date();
-      const cancellationTimestamp = result.data?.cancelledAt || now.toISOString();
+      const cancellationTimestamp = now.toISOString();
+      const selectionRef = doc(db, 'mealSelections', dateStr, 'users', currentUser.uid);
 
+      // Preserve historical array types if present, otherwise use booleans per firestore.rules
+      const raw = bookingData?.raw || {};
       const cancelledPayload = {
-        ...(bookingData?.raw || {}),
+        ...raw,
         employeeId: currentUser.uid,
         userId: currentUser.uid,
         email: currentUser.email || '',
@@ -432,11 +447,13 @@ const MonthlyDateDetailPanel = ({
           second: '2-digit',
           hour12: true
         }),
-        breakfast: false,
-        lunch: false,
-        snacks: false,
-        dinner: false
+        breakfast: Array.isArray(raw.breakfast) ? raw.breakfast : false,
+        lunch: Array.isArray(raw.lunch) ? raw.lunch : false,
+        snacks: Array.isArray(raw.snacks) ? raw.snacks : false,
+        dinner: Array.isArray(raw.dinner) ? raw.dinner : false
       };
+
+      await setDoc(selectionRef, cancelledPayload, { merge: true });
 
       await cacheDocument(
         docCacheKey('mealSelections', dateStr, 'users', currentUser.uid),

@@ -1,4 +1,52 @@
-/* src/components/SuperAdmin/SuperAdminDashboard.css */
+/* Test notification modal */
+.test-modal-overlay {
+  position: fixed;
+  inset: 0;
+  backdrop-filter: blur(4px);
+  background: rgba(0,0,0,0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.test-modal {
+  border: none;
+  border-radius: var(--radius-md);
+  padding: var(--space-lg);
+  background: var(--secondary-bg);
+  box-shadow: var(--shadow-lg);
+  max-width: 400px;
+  width: 100%;
+}
+
+.modal-label {
+  display: block;
+  margin-top: var(--space-md);
+  font-weight: var(--font-weight-medium);
+}
+
+.modal-input,
+.modal-textarea {
+  width: 100%;
+  margin-top: 4px;
+  padding: var(--space-sm);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+}
+
+.modal-textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-sm);
+  margin-top: var(--space-lg);
+}
+
 
 .super-admin-dashboard {
   width: 100%;

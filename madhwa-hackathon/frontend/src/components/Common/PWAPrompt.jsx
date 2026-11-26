@@ -14,6 +14,9 @@ const PWAPrompt = () => {
     needRefresh: [needRefresh, setNeedRefresh],
     updateServiceWorker,
   } = useRegisterSW({
+    onNeedReload() {
+      console.log('PWA requested reload; deferred to user interaction.');
+    },
     onRegistered(r) {
       console.log('SW Registered: ', r);
     },

@@ -22,7 +22,7 @@ import {
   where,
   onSnapshot
 } from 'firebase/firestore';
-import { db } from '../../firebase/config';
+import { db, auth } from '../../firebase/config';
 import adminApi from '../../utils/adminApi';
 import { DEPARTMENTS } from './mockEmployees';
 import EmployeeTable from './EmployeeTable';
@@ -46,6 +46,7 @@ const SuperAdminDashboard = () => {
   const [error, setError] = useState(null);
 
   // Live user directory powers dashboard counts and Admin Management.
+  const [actionLoading, setActionLoading] = useState(false);
   useEffect(() => {
     const unsubscribe = onSnapshot(
       collection(db, 'users'),
@@ -96,7 +97,7 @@ const SuperAdminDashboard = () => {
     setActionLoading(true);
     try {
       await adminApi.deleteUser({ uid: adminToRemove.uid });
-      showNotice('success', `Admin ${adminToRemove.name || adminToRemove.email} removed successfully.`);
+      showNotice('success', `Admin ${adminToRemove ? (adminToRemove.name || adminToRemove.email) : ''} removed successfully.`);
       setAdminToRemove(null);
     } catch (err) {
       showNotice('error', err.message || 'Failed to remove admin.');
@@ -115,7 +116,29 @@ const SuperAdminDashboard = () => {
   const [employeeToEdit, setEmployeeToEdit] = useState(null);
   const [employeeToDelete, setEmployeeToDelete] = useState(null);
   const [selectedEmployee, setSelectedEmployee] = useState(null);
-  const [actionLoading, setActionLoading] = useState(false);
+  // Add test notification state and handlers
+  const [isTestModalOpen, setIsTestModalOpen] = useState(false);
+  const [testTitle, setTestTitle] = useState('Karmic Canteen Test');
+  const [testBody, setTestBody] = useState('Testing Firebase push notifications');
+  const openTestModal = () => setIsTestModalOpen(true);
+  const closeTestModal = () => setIsTestModalOpen(false);
+
+  const handleSendTest = async () => {
+    if (actionLoading) return;
+    setActionLoading(true);
+    try {
+      const uid = auth.currentUser?.uid;
+      const payload = { targetUid: uid, title: testTitle, body: testBody };
+      const result = await adminApi.sendTestNotification(payload);
+      showNotice('success', `Sent: ${result.sentCount}, Failed: ${result.failedCount}, Cleaned: ${result.cleanedCount}`);
+      closeTestModal();
+    } catch (err) {
+      console.error('Test notification error:', err);
+      showNotice('error', err.message || 'Failed to send test notification');
+    } finally {
+      setActionLoading(false);
+    }
+  };
 
   // User feedback notice
   const [notice, setNotice] = useState(null);
@@ -367,6 +390,7 @@ const SuperAdminDashboard = () => {
               <div className="super-admin-quick-actions">
                 <button className="btn btn-primary" onClick={() => setActiveView('employees')}><Users size={16} />Employee Management</button>
                 <button className="btn btn-primary" onClick={() => setActiveView('admins')}><Shield size={16} />Admin Management</button>
+                <button className="btn btn-primary" onClick={openTestModal}><AlertCircle size={16} />Test Push Notification</button>
               </div>
             </div>
           </section>
@@ -409,20 +433,125 @@ const SuperAdminDashboard = () => {
         )}
 
         {activeView === 'admins' && (
-          <section className="employee-management-section admin-management-section">
-            <div className="employee-toolbar"><div><h2 className="admin-list-heading">Registered Administrators</h2><p className="subtitle">{admins.length} administrator account{admins.length === 1 ? '' : 's'}</p></div><button className="btn btn-primary" onClick={() => setShowAdminForm((value) => !value)} disabled={actionLoading}><UserPlus size={16} />Add Admin</button></div>
-            {showAdminForm && <form className="admin-create-form" onSubmit={handleCreateAdmin}>
-              <h3>Create Admin Account</h3>
-              <div className="admin-form-grid">
-                <label>Full name<input required value={adminForm.name} onChange={(e) => setAdminForm({ ...adminForm, name: e.target.value })} placeholder="Admin full name" /></label>
-                <label>Email address<input required type="email" value={adminForm.email} onChange={(e) => setAdminForm({ ...adminForm, email: e.target.value })} placeholder="admin@example.com" /></label>
-                <label>Temporary password<input required type="password" minLength={6} value={adminForm.password} onChange={(e) => setAdminForm({ ...adminForm, password: e.target.value })} placeholder="At least 6 characters" /></label>
-              </div>
-              <div className="admin-form-actions"><button type="button" className="btn btn-secondary" onClick={() => setShowAdminForm(false)} disabled={actionLoading}>Cancel</button><button type="submit" className="btn btn-primary" disabled={actionLoading}>{actionLoading ? 'Creating...' : 'Create Admin'}</button></div>
-            </form>}
-            {admins.length === 0 ? <div className="empty-employee-state"><div className="empty-icon-wrap"><Shield size={36} /></div><h3 className="empty-title">No administrators found</h3><p className="empty-subtitle">Create an admin account to grant canteen management access.</p></div> : <div className="employee-table-container"><table className="employee-table"><thead><tr><th>Administrator</th><th>Email</th><th>Created</th><th className="th-actions">Actions</th></tr></thead><tbody>{admins.slice().sort((a,b) => (a.name || a.email || '').localeCompare(b.name || b.email || '')).map((admin) => <tr key={admin.uid}><td className="td-employee"><div className="employee-avatar">{(admin.name || admin.email || 'A').slice(0,1).toUpperCase()}</div><div className="employee-name-block"><span className="employee-name">{admin.name || 'Unnamed Admin'}</span><span className="employee-role-badge">Admin</span></div></td><td className="td-email">{admin.email || '—'}</td><td>{admin.createdAt?.toDate ? admin.createdAt.toDate().toLocaleDateString() : '—'}</td><td className="td-actions"><button type="button" className="btn-action-delete" onClick={() => setAdminToRemove(admin)} disabled={actionLoading}><Trash2 size={14} /><span className="btn-action-text">Remove</span></button></td></tr>)}</tbody></table></div>}
-          </section>
-        )}
+  <section className="employee-management-section admin-management-section">
+    <div className="employee-toolbar">
+      <div>
+        <h2 className="admin-list-heading">Registered Administrators</h2>
+        <p className="subtitle">
+          {admins.length} administrator account{admins.length === 1 ? '' : 's'}
+        </p>
+      </div>
+      <button className="btn btn-primary" onClick={() => setShowAdminForm(v => !v)} disabled={actionLoading}>
+        <UserPlus size={16} />Add Admin
+      </button>
+    </div>
+
+    {showAdminForm && (
+      <form className="admin-create-form" onSubmit={handleCreateAdmin}>
+        <h3>Create Admin Account</h3>
+        <div className="admin-form-grid">
+          <label>
+            Full name
+            <input
+              required
+              value={adminForm.name}
+              onChange={e => setAdminForm({ ...adminForm, name: e.target.value })}
+              placeholder="Admin full name"
+            />
+          </label>
+          <label>
+            Email address
+            <input
+              required
+              type="email"
+              value={adminForm.email}
+              onChange={e => setAdminForm({ ...adminForm, email: e.target.value })}
+              placeholder="admin@example.com"
+            />
+          </label>
+          <label>
+            Temporary password
+            <input
+              required
+              type="password"
+              minLength={6}
+              value={adminForm.password}
+              onChange={e => setAdminForm({ ...adminForm, password: e.target.value })}
+              placeholder="At least 6 characters"
+            />
+          </label>
+        </div>
+        <div className="admin-form-actions">
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={() => setShowAdminForm(false)}
+            disabled={actionLoading}
+          >
+            Cancel
+          </button>
+          <button type="submit" className="btn btn-primary" disabled={actionLoading}>
+            {actionLoading ? 'Creating...' : 'Create Admin'}
+          </button>
+        </div>
+      </form>
+    )}
+
+    {admins.length === 0 ? (
+      <div className="empty-employee-state">
+        <div className="empty-icon-wrap"><Shield size={36} /></div>
+        <h3 className="empty-title">No administrators found</h3>
+        <p className="empty-subtitle">Create an admin account to grant canteen management access.</p>
+      </div>
+    ) : (
+      <div className="employee-table-container">
+        <table className="employee-table">
+          <thead>
+            <tr>
+              <th>Administrator</th>
+              <th>Email</th>
+              <th>Created</th>
+              <th className="th-actions">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {admins
+              .slice()
+              .sort((a, b) => (a.name || a.email || '').localeCompare(b.name || b.email || ''))
+              .map(admin => (
+                <tr key={admin.uid}>
+                  <td className="td-employee">
+                    <div className="employee-avatar">
+                      {(admin.name || admin.email || 'A').slice(0, 1).toUpperCase()}
+                    </div>
+                    <div className="employee-name-block">
+                      <span className="employee-name">
+                        {admin.name || 'Unnamed Admin'}
+                      </span>
+                      <span className="employee-role-badge">Admin</span>
+                    </div>
+                  </td>
+                  <td className="td-email">{admin.email || '—'}</td>
+                  <td>{admin.createdAt?.toDate ? admin.createdAt.toDate().toLocaleDateString() : '—'}</td>
+                  <td className="td-actions">
+                    <button
+                      type="button"
+                      className="btn-action-delete"
+                      onClick={() => setAdminToRemove(admin)}
+                      disabled={actionLoading}
+                    >
+                      <Trash2 size={14} />
+                      <span className="btn-action-text">Remove</span>
+                    </button>
+                  </td>
+                </tr>
+              ))}
+          </tbody>
+        </table>
+      </div>
+    )}
+  </section>
+)}
       </main>
 
       <EmployeeDetailsModal isOpen={!!selectedEmployee} employee={selectedEmployee} onClose={() => setSelectedEmployee(null)} onEdit={(employee) => { setSelectedEmployee(null); setEmployeeToEdit(employee); }} />
@@ -431,7 +560,43 @@ const SuperAdminDashboard = () => {
       <EditEmployeeModal isOpen={!!employeeToEdit} employee={employeeToEdit} onClose={() => setEmployeeToEdit(null)} onSave={handleSaveEditEmployee} loading={actionLoading} existingEmployees={employees} />
       <DeleteEmployeeModal isOpen={!!employeeToDelete} employee={employeeToDelete} onClose={() => setEmployeeToDelete(null)} onConfirm={handleConfirmDelete} loading={actionLoading} />
 
-      {adminToRemove && <div className="superadmin-modal-overlay" onClick={() => !actionLoading && setAdminToRemove(null)}><div className="superadmin-modal-card" role="alertdialog" aria-modal="true" onClick={(e) => e.stopPropagation()}><div className="delete-dialog-header"><div className="delete-icon-badge"><AlertCircle size={24} /></div><button className="modal-close-btn" onClick={() => setAdminToRemove(null)} disabled={actionLoading} aria-label="Close"><X size={18} /></button></div><div className="delete-dialog-body"><h2 className="delete-dialog-title">Remove Admin?</h2><p className="delete-dialog-text">Are you sure you want to remove <strong>{adminToRemove.name || adminToRemove.email}</strong>? This permanently removes their Firebase login and admin profile. Historical meal records are preserved.</p></div><div className="superadmin-modal-actions"><button className="btn btn-secondary" onClick={() => setAdminToRemove(null)} disabled={actionLoading}>Cancel</button><button className="btn btn-danger" onClick={handleRemoveAdmin} disabled={actionLoading}>{actionLoading ? 'Removing...' : 'Confirm Remove'}</button></div></div></div>}
+      {isTestModalOpen && (
+        <div className="test-modal-overlay" onClick={closeTestModal}>
+          <dialog className="test-modal" open onClick={e => e.stopPropagation()}>
+            <h2>Test Push Notification</h2>
+            <label className="modal-label">Title
+              <input type="text" value={testTitle} onChange={e => setTestTitle(e.target.value)} className="modal-input" />
+            </label>
+            <label className="modal-label">Message
+              <textarea value={testBody} onChange={e => setTestBody(e.target.value)} className="modal-textarea" />
+            </label>
+            <div className="modal-actions">
+              <button className="btn btn-secondary" onClick={closeTestModal} disabled={actionLoading}>Cancel</button>
+              <button className="btn btn-primary" onClick={handleSendTest} disabled={actionLoading}>
+                {actionLoading ? 'Sending...' : 'Send'}
+              </button>
+            </div>
+          </dialog>
+        </div>
+      )}
+      {adminToRemove && (
+  <div className="superadmin-modal-overlay" onClick={() => !actionLoading && setAdminToRemove(null)}>
+    <div className="superadmin-modal-card" role="alertdialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
+      <div className="delete-dialog-header">
+        <div className="delete-icon-badge"><AlertCircle size={24} /></div>
+        <button className="modal-close-btn" onClick={() => setAdminToRemove(null)} disabled={actionLoading} aria-label="Close"><X size={18} /></button>
+      </div>
+      <div className="delete-dialog-body">
+        <h2 className="delete-dialog-title">Remove Admin?</h2>
+        <p className="delete-dialog-text">Are you sure you want to remove <strong>{adminToRemove ? (adminToRemove.name || adminToRemove.email) : ''}</strong>? This permanently removes their Firebase login and admin profile. Historical meal records are preserved.</p>
+      </div>
+      <div className="superadmin-modal-actions">
+        <button className="btn btn-secondary" onClick={() => setAdminToRemove(null)} disabled={actionLoading}>Cancel</button>
+        <button className="btn btn-danger" onClick={handleRemoveAdmin} disabled={actionLoading}>{actionLoading ? 'Removing...' : 'Confirm Remove'}</button>
+      </div>
+    </div>
+  </div>
+)}
     </div>
   );
 };
